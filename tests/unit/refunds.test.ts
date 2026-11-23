@@ -40,6 +40,7 @@ const order = {
   id: 'o',
   storeId: 's',
   status: 'PAID',
+  version: 1,
   total: 29999,
   items: [item],
   refunds: [],
@@ -47,6 +48,8 @@ const order = {
 const actor = { id: 'user', storeId: 's' },
   input = {
     id: '6fa9c5b5-4353-4ef9-a266-b8d3a559e8e3',
+    version: 1,
+    amount: 9999,
     ownerPin: '1111',
     reason: 'Sai món',
     method: 'CASH' as const,
@@ -126,6 +129,7 @@ it('records authorized negative payments in the current shift and replays the sa
     }),
   });
   mocks.db.refund.findFirst.mockResolvedValue({ ...created, orderId: 'o' });
+  mocks.db.order.findFirst.mockResolvedValue({ ...order, version: 2 });
   await refundOrder(actor, 'o', input);
   expect(mocks.db.payment.create).toHaveBeenCalledTimes(1);
   await expect(
@@ -145,6 +149,30 @@ it('requires owner approval, a paid bill and a current open shift', async () => 
   });
   expect(mocks.db.payment.create).not.toHaveBeenCalled();
   expect(refundSchema.safeParse({ ...input, reason: '' }).success).toBe(false);
+});
+it('rejects stale full refunds and different confirmed amounts without silently shrinking the payout', async () => {
+  const current = {
+    ...order,
+    version: 2,
+    refunds: [
+      { items: [{ itemId: item.id, quantity: 1, amount: 9999 }], amount: 9999 },
+    ],
+  };
+  mocks.db.order.findFirst.mockResolvedValue(current);
+  const full = { ...input, items: undefined, amount: 29999 };
+  await expect(refundOrder(actor, 'o', full)).rejects.toMatchObject({
+    status: 409,
+    details: { order: current },
+  });
+  await expect(
+    refundOrder(actor, 'o', { ...full, version: 2 }),
+  ).rejects.toMatchObject({ status: 409 });
+  expect(mocks.db.payment.create).not.toHaveBeenCalled();
+  expect(mocks.db.refund.create).not.toHaveBeenCalled();
+  await refundOrder(actor, 'o', { ...full, version: 2, amount: 20000 });
+  expect(mocks.db.payment.create).toHaveBeenCalledWith({
+    data: expect.objectContaining({ amount: -20000 }),
+  });
 });
 it('subtracts refunds by method from current-shift expected cash, including refund-only shifts', () => {
   expect(

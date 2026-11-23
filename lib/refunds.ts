@@ -8,6 +8,8 @@ import { lockStore, orderInclude } from './sales';
 import { sumMoney } from './money';
 export const refundSchema = z.object({
   id: z.uuid(),
+  version: z.number().int().positive(),
+  amount: z.number().int().positive().max(2147483647),
   ownerPin: z.string().regex(/^\d{4,6}$/, 'PIN gồm 4–6 chữ số'),
   reason: z.string().trim().min(1, 'Nhập lý do hoàn tiền').max(300),
   method: z.enum(['CASH', 'BANK_TRANSFER']),
@@ -28,6 +30,8 @@ export async function refundOrder(
     .update(
       JSON.stringify({
         id,
+        version: input.version,
+        amount: input.amount,
         reason: input.reason,
         method: input.method,
         items: input.items?.toSorted((a, b) =>
@@ -60,6 +64,10 @@ export async function refundOrder(
     }
     if (order.status !== 'PAID')
       throw new HttpError('Chỉ hoàn tiền cho đơn đã thanh toán', 409);
+    const stale =
+      'Hóa đơn đã thay đổi. Chưa ghi khoản hoàn này; không trả thêm tiền. Đối chiếu lại số tiền và nhập lại PIN chủ quán để xác nhận lại.';
+    if (order.version !== input.version)
+      throw new HttpError(stale, 409, { order });
     const shift = await tx.shift.findFirst({
       where: { storeId: actor.storeId, closedAt: null },
     });
@@ -78,6 +86,7 @@ export async function refundOrder(
       );
     }
     const amount = sumMoney(lines.map((i) => i.amount));
+    if (amount !== input.amount) throw new HttpError(stale, 409, { order });
     if (
       amount <= 0 ||
       amount + sumMoney(order.refunds.map((r) => r.amount)) > order.total

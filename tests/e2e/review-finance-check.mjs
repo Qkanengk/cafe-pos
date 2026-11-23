@@ -105,6 +105,90 @@ try {
   console.log(
     'PASS share cancellation: owner can cancel an unpaid plan or waive unpaid remainder while preserving collected funds; both shifts close',
   );
+  const shift = await api('/api/shifts', 'POST', { openingCash: 100000 }, 201);
+  let order = await api('/api/orders', 'POST', {
+    id: randomUUID(),
+    type: 'TAKEAWAY',
+    lines: [{ variantId: variant.id, quantity: 2, toppingIds: [] }],
+  });
+  order = await api('/api/orders/' + order.id + '/pay', 'POST', {
+    id: randomUUID(),
+    method: 'CASH',
+    received: order.total,
+    version: order.version,
+  });
+  await page.goto('/orders?shiftId=' + shift.id);
+  await page
+    .getByRole('row')
+    .filter({ hasText: order.code })
+    .getByRole('button', { name: /Chi tiết đơn/ })
+    .click();
+  await page.getByText('Hoàn tiền có PIN chủ quán', { exact: true }).click();
+  await page
+    .getByLabel('Phương thức hoàn', { exact: true })
+    .selectOption('BANK_TRANSFER');
+  await page
+    .getByLabel('Lý do hoàn', { exact: true })
+    .fill('Hoàn toàn bộ sau đối chiếu');
+  await page.getByLabel('PIN chủ quán', { exact: true }).fill('1111');
+  const partial = {
+    id: randomUUID(),
+    version: order.version,
+    amount: variant.price,
+    method: 'BANK_TRANSFER',
+    ownerPin: '1111',
+    reason: 'Hoàn một món ở máy khác',
+    items: [{ itemId: order.items[0].id, quantity: 1 }],
+  };
+  let current = await api(
+    '/api/orders/' + order.id + '/refunds',
+    'POST',
+    partial,
+  );
+  const rejected = page.waitForResponse(
+    (r) => r.url().endsWith('/refunds') && r.request().method() === 'POST',
+  );
+  await page.getByRole('button', { name: /^Xác nhận đã hoàn / }).click();
+  assert.equal((await rejected).status(), 409);
+  await expect(
+    page.getByRole('alert').filter({ hasText: 'Hóa đơn đã thay đổi' }),
+  ).toBeVisible();
+  await expect(page.getByLabel('PIN chủ quán', { exact: true })).toHaveValue(
+    '',
+  );
+  assert.equal((await api('/api/orders/' + order.id)).refunds.length, 1);
+  await api(
+    '/api/orders/' + order.id + '/refunds',
+    'POST',
+    {
+      ...partial,
+      id: randomUUID(),
+      version: current.version,
+      amount: order.total,
+      items: undefined,
+    },
+    409,
+  );
+  await api('/api/orders/' + order.id + '/refunds', 'POST', partial);
+  await page.getByLabel('PIN chủ quán', { exact: true }).fill('1111');
+  await page.getByRole('button', { name: /^Xác nhận đã hoàn / }).click();
+  await expect(
+    page.getByText('Hoàn tiền có PIN chủ quán', { exact: true }),
+  ).toHaveCount(0);
+  current = await api('/api/orders/' + order.id);
+  assert.equal(current.refunds.length, 2);
+  assert.equal(
+    current.refunds.reduce((s, r) => s + r.amount, 0),
+    order.total,
+  );
+  await api('/api/shifts', 'PUT', {
+    id: shift.id,
+    countedCash: 100000 + order.total,
+    note: 'Stale refund regression',
+  });
+  console.log(
+    'PASS stale refunds: concurrent partial refund rejects the old full amount/version with 409 and no payout; PIN cleared; fresh explicit confirmation succeeds; replay stays idempotent',
+  );
 } finally {
   await browser.close();
 }

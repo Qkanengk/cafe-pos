@@ -149,6 +149,8 @@ export function RefundControl({
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                       id,
+                      version: order.version,
+                      amount,
                       ownerPin: pin,
                       reason,
                       method,
@@ -157,7 +159,14 @@ export function RefundControl({
                   },
                 );
                 const result = await response.json();
-                if (!response.ok) throw new Error(result.error);
+                if (!response.ok) {
+                  if (response.status === 409 && result.details?.order) {
+                    onChange(result.details.order);
+                    setPin('');
+                    setId(crypto.randomUUID());
+                  }
+                  throw new Error(result.error);
+                }
                 onChange(result);
                 setPin('');
                 setReason('');

@@ -169,6 +169,8 @@ try {
   const refundId = randomUUID(),
     refund = {
       id: refundId,
+      version: order.version,
+      amount: variant.price,
       ownerPin: '1111',
       reason: 'Hoàn món thử nghiệm',
       method: 'CASH',
