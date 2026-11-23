@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   parseVndInput,
+  normalizeVndEditing,
   lineTotal,
   subtotal,
   cartTotal,
@@ -10,6 +11,12 @@ import {
   vnd,
 } from '../../lib/money';
 describe('Vietnamese VND input', () => {
+  it('normalizes partial grouping while editing without masking invalid characters', () => {
+    for (const value of ['50.00', '5,000', '5000'])
+      expect(parseVndInput(normalizeVndEditing(value))).toBe(5000);
+    expect(normalizeVndEditing('')).toBe('');
+    expect(parseVndInput(normalizeVndEditing('50a.00'))).toBeNaN();
+  });
   it('accepts dots, commas, and ungrouped integer VND', () => {
     for (const value of ['500.000', '500,000', '500000', ' 500.000 ', 500000])
       expect(parseVndInput(value)).toBe(500000);

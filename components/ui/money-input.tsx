@@ -1,7 +1,7 @@
 'use client';
 import { useState, type InputHTMLAttributes } from 'react';
 import { Input } from './input';
-import { parseVndInput } from '@/lib/money';
+import { parseVndInput, normalizeVndEditing } from '@/lib/money';
 type Props = Omit<
   InputHTMLAttributes<HTMLInputElement>,
   'value' | 'onChange' | 'type'
@@ -33,7 +33,7 @@ export function MoneyInput({
       onBlur={() => setEditing(null)}
       onChange={(event) => {
         setEditing(event.target.value);
-        onValueChange(event.target.value);
+        onValueChange(normalizeVndEditing(event.target.value));
       }}
     />
   );

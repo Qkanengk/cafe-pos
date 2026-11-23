@@ -1,3 +1,6 @@
+export function normalizeVndEditing(value: string) {
+  return value.replace(/[.,]/g, '');
+}
 export function parseVndInput(value: string | number): number {
   const text = String(value).trim();
   if (!/^(?:\d+|\d{1,3}(?:\.\d{3})+|\d{1,3}(?:,\d{3})+)$/.test(text))
