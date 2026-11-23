@@ -75,7 +75,11 @@ export function reapplyPending(
     const delta = Math.max(0, line.quantity - old.quantity);
     const current = merged.find((i) => i.id === old.id);
     if (current) {
-      current.quantity = Math.max(current.quantity, line.quantity);
+      if (delta > 0)
+        current.quantity =
+          current.quantity < old.quantity
+            ? current.quantity + delta
+            : Math.max(current.quantity, line.quantity);
       if (line.note !== old.note) current.note = line.note;
     } else if (delta > 0)
       merged.push({

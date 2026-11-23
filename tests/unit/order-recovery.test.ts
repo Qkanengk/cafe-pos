@@ -118,6 +118,19 @@ it('does not re-add a pending line already committed before the response was los
     reapplyPending(base, fresh, [...orderLines(base), pending]),
   ).toHaveLength(2);
 });
+it('does not restore split quantities for untouched or note-only pending lines', () => {
+  const before = { ...base, items: [{ ...item, quantity: 5 }] },
+    fresh = { ...base, items: [{ ...item, quantity: 2 }] };
+  expect(reapplyPending(before, fresh, orderLines(before))[0].quantity).toBe(2);
+  const working = orderLines(before);
+  working[0].note = 'ít đá';
+  expect(reapplyPending(before, fresh, working)[0]).toMatchObject({
+    quantity: 2,
+    note: 'ít đá',
+  });
+  working[0].quantity = 6;
+  expect(reapplyPending(before, fresh, working)[0].quantity).toBe(3);
+});
 it('migrates old pending line keys to stable UUIDs without changing server identities', () => {
   const existing = orderLines(base);
   const legacy = { ...existing[0], id: 'pending-old-key', snapshot: undefined };
