@@ -42,6 +42,7 @@ import {
   formatVnd,
   startingPrice,
   parseVndInput,
+  parseDiscountInput,
   type Discount,
 } from '@/lib/money';
 import { checkoutSchema } from '@/lib/sales-validation';
@@ -327,8 +328,9 @@ export function Terminal({
     ) ||
       type !== prepared.type ||
       (type === 'DINE_IN' && tableId !== prepared.tableId) ||
-      parseVndInput(discountValue) !== prepared.discountValue ||
-      (parseVndInput(discountValue) > 0 &&
+      parseDiscountInput(discountValue, discountType) !==
+        prepared.discountValue ||
+      (parseDiscountInput(discountValue, discountType) > 0 &&
         discountType !== prepared.discountType));
   function load(order: SaleOrder) {
     if (order.status !== 'OPEN') {
@@ -403,7 +405,7 @@ export function Terminal({
   }
   const discount: Discount = {
     type: discountType,
-    value: parseVndInput(discountValue),
+    value: parseDiscountInput(discountValue, discountType),
   };
   let totals = { subtotal: 0, discount: 0, total: 0 };
   let valid = true;

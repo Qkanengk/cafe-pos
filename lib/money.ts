@@ -1,5 +1,17 @@
-export function normalizeVndEditing(value: string) {
-  return value.replace(/[.,]/g, '');
+export function normalizeVndEditing(value: string, deleting = false) {
+  if (deleting && /^[\d.,]+$/.test(value)) return value.replace(/[.,]/g, '');
+  const amount = parseVndInput(value);
+  return Number.isFinite(amount) ? String(amount) : value;
+}
+export function parsePercentInput(value: string | number) {
+  const text = String(value).trim();
+  return /^\d+$/.test(text) && Number(text) <= 100 ? Number(text) : NaN;
+}
+export function parseDiscountInput(
+  value: string | number,
+  type: 'PERCENT' | 'AMOUNT',
+) {
+  return type === 'PERCENT' ? parsePercentInput(value) : parseVndInput(value);
 }
 export function parseVndInput(value: string | number): number {
   const text = String(value).trim();

@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import {
   parseVndInput,
   normalizeVndEditing,
+  parsePercentInput,
+  parseDiscountInput,
   lineTotal,
   subtotal,
   cartTotal,
@@ -13,10 +15,23 @@ import {
 } from '../../lib/money';
 describe('Vietnamese VND input', () => {
   it('normalizes partial grouping while editing without masking invalid characters', () => {
-    for (const value of ['50.00', '5,000', '5000'])
+    expect(parseVndInput(normalizeVndEditing('50.00', true))).toBe(5000);
+    for (const value of ['5,000', '5000'])
       expect(parseVndInput(normalizeVndEditing(value))).toBe(5000);
     expect(normalizeVndEditing('')).toBe('');
     expect(parseVndInput(normalizeVndEditing('50a.00'))).toBeNaN();
+  });
+  it('does not turn decimal or mixed currency insertion into a larger integer', () => {
+    for (const value of ['1.5', '50,000.00', '50.00'])
+      expect(parseVndInput(normalizeVndEditing(value))).toBeNaN();
+    expect(normalizeVndEditing('50,000')).toBe('50000');
+    expect(normalizeVndEditing('50.000')).toBe('50000');
+    for (const value of ['1.5', '1,5', '1.000', '101', ''])
+      expect(parsePercentInput(value)).toBeNaN();
+    expect(parseDiscountInput('50.000', 'AMOUNT')).toBe(50000);
+    expect(parseDiscountInput('50.000', 'PERCENT')).toBeNaN();
+    expect(parsePercentInput('15')).toBe(15);
+    expect(parsePercentInput('0')).toBe(0);
   });
   it('accepts dots, commas, and ungrouped integer VND', () => {
     for (const value of ['500.000', '500,000', '500000', ' 500.000 ', 500000])
