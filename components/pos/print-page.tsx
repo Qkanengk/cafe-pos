@@ -35,7 +35,7 @@ export async function PrintPage({
     <main className="print-surface min-h-screen py-8">
       <style>{`
  .paper { width: ${width}mm; padding: 4mm; margin: 0 auto; background: white; color: black; font-family: Arial, sans-serif; font-size: 11px; overflow-wrap: anywhere; }
- @page { size: ${width}mm 297mm; margin: 0; }
+ @page { size: auto; margin: 0; }
  @media print { html,body { margin:0!important; padding:0!important; background:white!important; } .print-toolbar { display:none!important; } .print-surface { padding:0!important; min-height:0!important; } .paper { margin:0!important; box-shadow:none!important; } .receipt-line { break-inside:avoid; } }
  `}</style>
       <div className="print-toolbar mx-auto mb-6 flex max-w-md items-center justify-center gap-5 px-4">
@@ -45,7 +45,7 @@ export async function PrintPage({
         >
           Về đơn hàng
         </Link>
-        <PrintButton />
+        <PrintButton width={width} />
       </div>
       <article
         className="paper shadow-lg"
