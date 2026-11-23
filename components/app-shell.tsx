@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Coffee } from 'lucide-react';
 import { requireUser } from '@/lib/auth';
 import { navigation } from '@/lib/navigation';
 import { db } from '@/lib/db';
@@ -10,8 +11,11 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen">
       <header className="flex flex-wrap items-center justify-between gap-4 border-b border-stone-200 bg-white px-6 py-5">
-        <Link href="/pos" className="text-xl font-bold text-emerald-900">
-          ☕ {store.name}
+        <Link
+          href="/pos"
+          className="inline-flex items-center gap-2 text-xl font-bold text-emerald-900"
+        >
+          <Coffee size={24} aria-hidden="true" /> {store.name}
         </Link>
         <div className="flex items-center gap-5">
           <span className="text-sm">
@@ -39,7 +43,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
               </Link>
             ))}
         </nav>
-        <main>{children}</main>
+        <main className="min-w-0">{children}</main>
       </div>
     </div>
   );

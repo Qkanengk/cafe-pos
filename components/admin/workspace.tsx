@@ -1,5 +1,6 @@
 'use client';
 import { useState, type FormEvent } from 'react';
+import { Coffee, Plus, Circle, CircleCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { adminSchemas, banks, type Resource } from '@/lib/admin-validation';
@@ -398,7 +399,10 @@ export function AdminWorkspace({
           </p>
         </div>
         {section !== 'settings' && (
-          <Button onClick={() => edit()}>＋ Thêm {singular[resource]}</Button>
+          <Button onClick={() => edit()}>
+            <Plus size={20} className="mr-2" aria-hidden="true" />
+            Thêm {singular[resource]}
+          </Button>
         )}
       </header>
       {notice && (
@@ -501,7 +505,9 @@ export function AdminWorkspace({
                             : undefined
                         }
                       >
-                        {row.imageUrl ? '' : '☕'}
+                        {!row.imageUrl && (
+                          <Coffee size={28} aria-hidden="true" />
+                        )}
                       </div>
                     )}
                     <div>
@@ -574,7 +580,20 @@ export function AdminWorkspace({
                           : 'bg-amber-100 text-amber-900')
                       }
                     >
-                      {row.isAvailable ? '● Đang bán' : '○ Hết hàng'}
+                      {row.isAvailable ? (
+                        <CircleCheck
+                          size={16}
+                          className="mr-2 inline"
+                          aria-hidden="true"
+                        />
+                      ) : (
+                        <Circle
+                          size={16}
+                          className="mr-2 inline"
+                          aria-hidden="true"
+                        />
+                      )}
+                      {row.isAvailable ? 'Đang bán' : 'Hết hàng'}
                     </button>
                   ) : (
                     <span className="text-xs text-stone-400">

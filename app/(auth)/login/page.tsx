@@ -1,4 +1,5 @@
 import { db } from '@/lib/db';
+import { Coffee } from 'lucide-react';
 import { LoginForm } from './login-form';
 export const dynamic = 'force-dynamic';
 export default async function LoginPage() {
@@ -14,7 +15,9 @@ export default async function LoginPage() {
         <p className="mb-8 text-sm font-bold uppercase tracking-widest text-emerald-800">
           {store?.name ?? 'Cafe POS'} / Quầy bán hàng
         </p>
-        <h1 className="text-3xl font-bold">Chào ngày mới ☕</h1>
+        <h1 className="flex items-center gap-3 text-3xl font-bold">
+          Chào ngày mới <Coffee size={30} aria-hidden="true" />
+        </h1>
         <p className="mt-3 mb-8 text-stone-500">
           Đăng nhập để bắt đầu ca làm việc.
         </p>

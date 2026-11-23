@@ -1,5 +1,6 @@
 'use client';
 import { useState, type FormEvent } from 'react';
+import { ArrowRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -120,7 +121,14 @@ export function LoginForm({
           </p>
         )}
         <Button className="w-full" disabled={busy || !users.length}>
-          {busy ? 'Đang đăng nhập…' : 'Đăng nhập →'}
+          {busy ? (
+            'Đang đăng nhập…'
+          ) : (
+            <>
+              Đăng nhập{' '}
+              <ArrowRight size={20} className="ml-2" aria-hidden="true" />
+            </>
+          )}
         </Button>
       </form>
     </>
