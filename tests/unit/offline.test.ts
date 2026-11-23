@@ -47,7 +47,12 @@ vi.mock('dexie', () => ({
     }
   },
 }));
-import { prepareLocal, payLocal, refreshSnapshot } from '../../lib/offline';
+import {
+  prepareLocal,
+  payLocal,
+  refreshSnapshot,
+  syncPending,
+} from '../../lib/offline';
 import type { OfflineSnapshot } from '../../lib/offline-types';
 import { checkoutSchema } from '../../lib/sales-validation';
 const id = '11111111-1111-4111-8111-111111111111';
@@ -99,6 +104,46 @@ beforeEach(() => {
   mem.db.snapshots.rows.set('active', { id: 'active', data: snapshot() });
 });
 describe('local sale snapshots', () => {
+  it('moves past twenty rejected orders instead of starving the twenty-first', async () => {
+    for (let i = 0; i < 21; i++)
+      mem.db.outbox.rows.set('q' + i, {
+        id: 'q' + i,
+        userId: 'cashier',
+        entry: { order: { id: 'q' + i } },
+      });
+    vi.mocked(fetch).mockImplementation(async (_url, options) => {
+      const { entries } = JSON.parse(options!.body as string);
+      return Response.json({
+        results: entries.map((e: { order: { id: string } }) => ({
+          id: e.order.id,
+          ok: e.order.id === 'q20',
+          code: 'CF-21',
+          error: 'rejected',
+        })),
+      });
+    });
+    await syncPending();
+    expect(mem.db.outbox.rows.size).toBe(21);
+    await syncPending();
+    expect(mem.db.outbox.rows.has('q20')).toBe(false);
+    expect(mem.db.outbox.rows.size).toBe(20);
+    expect(mem.db.outbox.rows.get('q0')).toMatchObject({
+      error: 'rejected',
+      attempts: 1,
+    });
+  });
+  it('backs off HTTP failures without deleting orders; an empty queue makes no request', async () => {
+    await syncPending();
+    expect(fetch).not.toHaveBeenCalled();
+    mem.db.outbox.rows.set('q', { id: 'q', userId: 'cashier', entry: {} });
+    vi.mocked(fetch).mockResolvedValue(
+      Response.json({ error: 'server down' }, { status: 503 }),
+    );
+    await expect(syncPending()).rejects.toThrow('server down');
+    await syncPending();
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(mem.db.outbox.rows.size).toBe(1);
+  });
   it('keeps the exact pricing catalog and shift when menu refreshes before payment', async () => {
     const order = await prepareLocal(input());
     const newer = snapshot();

@@ -12,6 +12,8 @@ export type PendingOrder = {
   entry: SyncEntry;
   order: SaleOrder;
   error?: string;
+  attempts?: number;
+  retryAt?: number;
 };
 const local = new Dexie('cafe-pos-offline') as Dexie & {
   snapshots: EntityTable<{ id: string; data: OfflineSnapshot }, 'id'>;
@@ -208,18 +210,33 @@ export async function pendingState() {
   };
 }
 let syncing = false;
+async function deferSync(pending: PendingOrder[], error: string) {
+  for (const order of pending) {
+    const attempts = (order.attempts ?? 0) + 1;
+    await local.outbox.update(order.id, {
+      error,
+      attempts,
+      retryAt:
+        Date.now() + Math.min(300000, 10000 * 2 ** Math.min(attempts, 5)),
+    });
+  }
+}
 export async function syncPending() {
   if (syncing || !navigator.onLine) return;
   syncing = true;
+  let pending: PendingOrder[] = [];
   try {
     const record = await local.snapshots.get('active');
     if (!record) return;
     const snapshot = record.data;
-    const pending = await local.outbox
+    const queued = await local.outbox
       .where('userId')
       .equals(snapshot.user.id)
-      .limit(20)
       .toArray();
+    pending = queued
+      .filter((order) => (order.retryAt ?? 0) <= Date.now())
+      .sort((a, b) => (a.retryAt ?? 0) - (b.retryAt ?? 0))
+      .slice(0, 20);
     if (!pending.length) return;
     const response = await fetch('/api/sync', {
       method: 'POST',
@@ -230,15 +247,17 @@ export async function syncPending() {
       const body = await response
         .json()
         .catch(() => ({ error: 'Không thể đồng bộ' }));
-      for (const p of pending)
-        await local.outbox.update(p.id, { error: body.error });
-      return;
+      throw new Error(body.error ?? 'Không thể đồng bộ');
     }
     const { results } = (await response.json()) as {
       results: { id: string; ok: boolean; code?: string; error?: string }[];
     };
-    for (const result of results) {
-      if (!pending.some((p) => p.id === result.id)) continue;
+    for (const order of pending) {
+      const result = results.find((r) => r.id === order.id) ?? {
+        id: order.id,
+        ok: false,
+        error: 'Máy chủ chưa xác nhận đơn',
+      };
       if (result.ok && result.code)
         await local.transaction(
           'rw',
@@ -253,11 +272,14 @@ export async function syncPending() {
             await local.outbox.delete(result.id);
           },
         );
-      else
-        await local.outbox.update(result.id, {
-          error: result.error ?? 'Đồng bộ thất bại',
-        });
+      else await deferSync([order], result.error ?? 'Đồng bộ thất bại');
     }
+  } catch (error) {
+    await deferSync(
+      pending,
+      error instanceof Error ? error.message : 'Không thể đồng bộ',
+    );
+    throw error;
   } finally {
     syncing = false;
     offlineChanged();
