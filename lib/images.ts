@@ -88,6 +88,7 @@ function imagePath(storeId: string, name: string) {
   )
     throw new ImageError('Không tìm thấy ảnh', 404);
   return path.join(
+    /*turbopackIgnore: true*/
     process.env.UPLOAD_DIR ?? path.join(process.cwd(), 'uploads'),
     storeId,
     name,
@@ -108,7 +109,7 @@ export async function storeImage(
 export async function loadImage(storeId: string, name: string) {
   const file = imagePath(storeId, name);
   try {
-    const data = await readFile(file);
+    const data = await readFile(/*turbopackIgnore: true*/ file);
     const ext = name.split('.').at(-1);
     const mime = Object.keys(formats).find((type) => formats[type] === ext)!;
     imageType(mime, data);
