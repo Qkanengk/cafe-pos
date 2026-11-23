@@ -167,6 +167,29 @@ try {
   await add('Bạc xỉu');
   await add('Croissant');
   await expect(page.getByTestId('cart-line')).toHaveCount(3);
+  for (const height of [600, 480]) {
+    await page.setViewportSize({ width: 1024, height });
+    for (const name of [/^Giữ đơn \/ Tạm tính/, /^Thanh toán/]) {
+      const button = page.getByRole('button', { name });
+      await expect(button).toBeVisible();
+      assert.equal(
+        await button.evaluate((element) => {
+          const r = element.getBoundingClientRect();
+          return (
+            r.top >= 0 &&
+            r.bottom <= innerHeight &&
+            element.contains(
+              document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2),
+            )
+          );
+        }),
+        true,
+        'held dine-in footer is painted inside the short viewport',
+      );
+    }
+  }
+  await page.screenshot({ path: shots + '/short-register.png' });
+  await page.setViewportSize({ width: 1280, height: 800 });
   await page.screenshot({ path: shots + '/pos.png', fullPage: false });
   order = await save('POST', '/api/orders');
   const initialTotal = order.total;

@@ -833,118 +833,120 @@ export function Terminal({
           )}
         </section>
         <aside className="register-ticket">
-          <div className="mb-3 flex items-center justify-between gap-2">
-            <h2 aria-label="Đơn hiện tại" className="font-semibold">
-              {prepared?.code ?? 'Đơn mới'}{' '}
-              <span className="text-xs font-normal text-stone-500">
-                · {lines.length} món
-              </span>
-            </h2>
-            <button
-              type="button"
-              disabled={busy || !cartReady}
-              onClick={discardCart}
-              className="grid h-9 w-9 place-items-center rounded-md text-stone-500 hover:bg-stone-100"
-              aria-label="Bỏ giỏ đang nhập (không hủy đơn đã giữ)"
-              title="Bỏ giỏ đang nhập (không hủy đơn đã giữ)"
-            >
-              <Trash2 size={17} aria-hidden="true" />
-            </button>
-          </div>
-          <div className="mb-3 flex gap-1">
-            {(['TAKEAWAY', 'DINE_IN'] as const).map((value) => (
+          <div className="ticket-body">
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <h2 aria-label="Đơn hiện tại" className="font-semibold">
+                {prepared?.code ?? 'Đơn mới'}{' '}
+                <span className="text-xs font-normal text-stone-500">
+                  · {lines.length} món
+                </span>
+              </h2>
               <button
-                key={value}
-                disabled={busy}
-                aria-pressed={type === value}
-                onClick={() => setType(value)}
-                className={
-                  'min-h-10 flex-1 rounded-md border px-3 text-sm font-semibold ' +
-                  (type === value
-                    ? 'border-emerald-700 bg-emerald-50 text-emerald-900'
-                    : 'border-stone-200')
-                }
+                type="button"
+                disabled={busy || !cartReady}
+                onClick={discardCart}
+                className="grid h-9 w-9 place-items-center rounded-md text-stone-500 hover:bg-stone-100"
+                aria-label="Bỏ giỏ đang nhập (không hủy đơn đã giữ)"
+                title="Bỏ giỏ đang nhập (không hủy đơn đã giữ)"
               >
-                {value === 'TAKEAWAY' ? 'Mang đi' : 'Tại bàn'}
+                <Trash2 size={17} aria-hidden="true" />
               </button>
-            ))}
-          </div>
-          {type === 'DINE_IN' && (
-            <select
-              aria-label="Chọn bàn"
-              disabled={busy}
-              value={tableId}
-              onChange={(e) => setTableId(e.target.value)}
-              className="mb-4 min-h-12 w-full rounded-xl border border-stone-300 px-3"
-            >
-              <option value="">Chọn bàn…</option>
-              {tables.map((table) => (
-                <option key={table.id} value={table.id}>
-                  {table.name} · {table.area}
-                </option>
-              ))}
-            </select>
-          )}
-          <div className="ticket-lines">
-            {!lines.length && (
-              <div className="py-12 text-center text-stone-400">
-                <ShoppingBag
-                  size={26}
-                  className="mx-auto mb-3"
-                  aria-hidden="true"
-                />
-                <p>Chạm vào món để bắt đầu</p>
-              </div>
-            )}
-            {lines.map((line) => {
-              const { product, variant, selected, money } = details(line);
-              return (
-                <div
-                  key={line.id}
-                  data-testid="cart-line"
-                  className="flex items-start justify-between gap-1 border-b border-stone-200 py-3"
+            </div>
+            <div className="mb-3 flex gap-1">
+              {(['TAKEAWAY', 'DINE_IN'] as const).map((value) => (
+                <button
+                  key={value}
+                  disabled={busy}
+                  aria-pressed={type === value}
+                  onClick={() => setType(value)}
+                  className={
+                    'min-h-10 flex-1 rounded-md border px-3 text-sm font-semibold ' +
+                    (type === value
+                      ? 'border-emerald-700 bg-emerald-50 text-emerald-900'
+                      : 'border-stone-200')
+                  }
                 >
-                  <button
-                    disabled={busy}
-                    className="ticket-line"
-                    onClick={() => setEditor(line)}
-                  >
-                    <span className="font-semibold">{line.quantity} ×</span>
-                    <span>
-                      <span className="block font-semibold">
-                        {product.name}{' '}
-                        <span className="font-normal text-stone-400">
-                          / {variant.name}
-                        </span>
-                      </span>
-                      {selected.length > 0 && (
-                        <span className="mt-1 block text-xs text-stone-500">
-                          {selected.map((t) => t.name).join(', ')}
-                        </span>
-                      )}
-                      {line.note && (
-                        <span className="mt-1 block text-xs text-emerald-800">
-                          {line.note}
-                        </span>
-                      )}
-                    </span>
-                    <span className="ticket-amount">
-                      {formatVnd(lineTotal(money))}
-                    </span>
-                  </button>
-                  <button
-                    disabled={busy || !!line.snapshot}
-                    aria-label={'Xóa ' + product.name}
-                    className="flex h-10 w-6 shrink-0 items-center justify-center text-stone-400 hover:text-red-700 disabled:opacity-30"
-                    onClick={() =>
-                      setLines(lines.filter((l) => l.id !== line.id))
-                    }
-                  >
-                    <Trash2 size={18} aria-hidden="true" />
-                  </button>
+                  {value === 'TAKEAWAY' ? 'Mang đi' : 'Tại bàn'}
+                </button>
+              ))}
+            </div>
+            {type === 'DINE_IN' && (
+              <select
+                aria-label="Chọn bàn"
+                disabled={busy}
+                value={tableId}
+                onChange={(e) => setTableId(e.target.value)}
+                className="mb-4 min-h-12 w-full rounded-xl border border-stone-300 px-3"
+              >
+                <option value="">Chọn bàn…</option>
+                {tables.map((table) => (
+                  <option key={table.id} value={table.id}>
+                    {table.name} · {table.area}
+                  </option>
+                ))}
+              </select>
+            )}
+            <div className="ticket-lines">
+              {!lines.length && (
+                <div className="py-12 text-center text-stone-400">
+                  <ShoppingBag
+                    size={26}
+                    className="mx-auto mb-3"
+                    aria-hidden="true"
+                  />
+                  <p>Chạm vào món để bắt đầu</p>
                 </div>
-              );
-            })}
+              )}
+              {lines.map((line) => {
+                const { product, variant, selected, money } = details(line);
+                return (
+                  <div
+                    key={line.id}
+                    data-testid="cart-line"
+                    className="flex items-start justify-between gap-1 border-b border-stone-200 py-3"
+                  >
+                    <button
+                      disabled={busy}
+                      className="ticket-line"
+                      onClick={() => setEditor(line)}
+                    >
+                      <span className="font-semibold">{line.quantity} ×</span>
+                      <span>
+                        <span className="block font-semibold">
+                          {product.name}{' '}
+                          <span className="font-normal text-stone-400">
+                            / {variant.name}
+                          </span>
+                        </span>
+                        {selected.length > 0 && (
+                          <span className="mt-1 block text-xs text-stone-500">
+                            {selected.map((t) => t.name).join(', ')}
+                          </span>
+                        )}
+                        {line.note && (
+                          <span className="mt-1 block text-xs text-emerald-800">
+                            {line.note}
+                          </span>
+                        )}
+                      </span>
+                      <span className="ticket-amount">
+                        {formatVnd(lineTotal(money))}
+                      </span>
+                    </button>
+                    <button
+                      disabled={busy || !!line.snapshot}
+                      aria-label={'Xóa ' + product.name}
+                      className="flex h-10 w-6 shrink-0 items-center justify-center text-stone-400 hover:text-red-700 disabled:opacity-30"
+                      onClick={() =>
+                        setLines(lines.filter((l) => l.id !== line.id))
+                      }
+                    >
+                      <Trash2 size={18} aria-hidden="true" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
           </div>
           <div className="ticket-footer">
             <div className="mb-3 flex justify-between text-sm text-stone-500">

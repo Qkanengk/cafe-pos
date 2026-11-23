@@ -966,11 +966,14 @@ select {
   background: white;
   padding: 14px;
 }
-.ticket-lines {
+.ticket-body {
   flex: 1;
-  min-height: 60px;
+  min-height: 0;
   overflow-y: auto;
   scrollbar-width: thin;
+}
+.ticket-lines {
+  min-height: 0;
 }
 .ticket-line {
   display: grid;
@@ -992,6 +995,8 @@ select {
 }
 .ticket-footer {
   flex-shrink: 0;
+  max-height: 85%;
+  overflow-y: auto;
   border-top: 1px solid #deded8;
   padding-top: 12px;
   margin-top: 8px;
@@ -1000,6 +1005,10 @@ select {
   min-height: 40px;
 }
 .ticket-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  background: white;
   display: grid;
   grid-template-columns: 1fr 2fr;
   gap: 8px;
@@ -1096,6 +1105,14 @@ select {
   }
 }
 @media (max-width: 900px) {
+  .ticket-body {
+    flex: none;
+    overflow: visible;
+  }
+  .register-ticket > .ticket-footer {
+    max-height: none;
+    overflow: visible;
+  }
   .workspace:has(.register) {
     overflow: auto;
   }
@@ -1115,8 +1132,7 @@ select {
     min-height: 380px;
   }
   .ticket-lines {
-    max-height: 45dvh;
-    flex: auto;
+    max-height: none;
   }
   .register-tools {
     flex-wrap: wrap;
@@ -1170,6 +1186,20 @@ select {
   }
   .payment-summary > [data-testid='payment-total'] {
     font-size: 28px;
+  }
+}
+@media (min-width: 901px) {
+  .register > section {
+    min-height: 0;
+    max-height: 28%;
+    overflow: auto;
+    flex-shrink: 1;
+  }
+  .register > p {
+    min-height: 0;
+    max-height: 18%;
+    overflow: auto;
+    flex-shrink: 1;
   }
 }
 @media (max-width: 480px) {
