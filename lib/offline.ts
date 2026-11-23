@@ -153,6 +153,21 @@ export async function payLocal(
   const draft = await local.drafts.get(order.id);
   if (!draft || draft.userId !== snapshot.user.id || !snapshot.shift)
     throw new Error('Không tìm thấy đơn/ca ngoại tuyến của nhân viên này');
+  const content = (sale: SaleOrder) =>
+    JSON.stringify([
+      sale.type,
+      sale.tableId,
+      sale.note,
+      sale.subtotal,
+      sale.total,
+      sale.discountType,
+      sale.discountValue,
+      sale.items,
+    ]);
+  if (content(order) !== content(draft.order))
+    throw new Error(
+      'Đơn trên thiết bị đã thay đổi. Hãy mở lại đơn để kiểm tra trước khi nhận tiền.',
+    );
   if (!draft.catalogToken || !draft.shiftId)
     throw new Error(
       'Đơn cũ thiếu bảng giá đã lưu. Kết nối và kiểm tra lại đơn trước khi thanh toán.',

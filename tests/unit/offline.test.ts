@@ -106,6 +106,16 @@ beforeEach(() => {
   mem.db.snapshots.rows.set('active', { id: 'active', data: snapshot() });
 });
 describe('local sale snapshots', () => {
+  it('rejects a stale local payment screen when another window changes the held draft', async () => {
+    const stale = await prepareLocal(input());
+    const changed = input();
+    changed.lines[0].quantity = 2;
+    await prepareLocal(changed);
+    await expect(
+      payLocal(stale, { method: 'CASH', received: 100000 }),
+    ).rejects.toThrow('đã thay đổi');
+    expect(mem.db.outbox.rows.size).toBe(0);
+  });
   it('replays only the same local payment UUID and rejects another window’s tender', async () => {
     const order = await prepareLocal(input());
     const paymentId = crypto.randomUUID();
