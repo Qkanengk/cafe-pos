@@ -129,12 +129,7 @@ try {
   for (let i = 0; i < 5; i++) {
     if (i === 2) {
       await page.reload({ waitUntil: 'networkidle' });
-      await expect(
-        page.getByRole('heading', {
-          name: 'Một ly ngon, một ngày vui',
-          exact: true,
-        }),
-      ).toBeVisible();
+      await expect(page.getByTestId('product-tile').first()).toBeVisible();
       await expect(page.getByTestId('network-status')).toContainText(
         '2 đơn chờ đồng bộ',
       );
