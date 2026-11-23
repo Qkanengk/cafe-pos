@@ -16,10 +16,12 @@ import { auditDiscount } from './discount-audit';
 export const orderInclude = {
   items: { include: { toppings: true }, orderBy: { id: 'asc' } },
   payments: true,
+  paymentParts: { include: { payment: true }, orderBy: { position: 'asc' } },
   creator: { select: { name: true } },
   table: { select: { name: true, area: true } },
 } satisfies Prisma.OrderInclude;
 export const shiftInclude = {
+  payments: true,
   opener: { select: { name: true } },
   closer: { select: { name: true } },
   orders: {
@@ -33,13 +35,8 @@ export const shiftInclude = {
 } satisfies Prisma.ShiftInclude;
 type ShiftData = Prisma.ShiftGetPayload<{ include: typeof shiftInclude }>;
 export function summarizeShift(shift: ShiftData) {
-  const totals = paymentTotals(
-    shift.orders.filter((o) => o.status === 'PAID').flatMap((o) => o.payments),
-  );
-  const expected = expectedCash(
-    shift.openingCash,
-    shift.orders.filter((o) => o.status === 'PAID').flatMap((o) => o.payments),
-  );
+  const totals = paymentTotals(shift.payments);
+  const expected = expectedCash(shift.openingCash, shift.payments);
   const { orders, ...data } = shift;
   return {
     ...data,
@@ -309,6 +306,11 @@ export async function payOrder(
       );
     if (order.status !== 'OPEN')
       throw new HttpError('Đơn không thể thanh toán', 409);
+    if (order.paymentParts?.length)
+      throw new HttpError(
+        'Đơn đã chia đều. Thu tiền theo từng phần trong màn hình Chia đều.',
+        409,
+      );
     const shift = await tx.shift.findFirst({
       where: { id: order.shiftId, storeId: actor.storeId, closedAt: null },
     });
@@ -327,6 +329,7 @@ export async function payOrder(
         ...(payment.id ? { id: payment.id } : {}),
         storeId: actor.storeId,
         orderId: id,
+        shiftId: order.shiftId,
         method: payment.method,
         amount: order.total,
         received: payment.method === 'CASH' ? payment.received : null,

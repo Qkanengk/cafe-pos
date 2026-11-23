@@ -31,6 +31,7 @@ export async function syncOrder(
       include: orderInclude,
     });
     const unconfirmed =
+      !existing?.paymentParts?.length &&
       existing?.status === 'OPEN' &&
       existing.storeId === actor.storeId &&
       existing.createdBy === actor.id &&
@@ -240,6 +241,7 @@ export async function syncOrder(
         id: entry.paymentId,
         storeId: actor.storeId,
         orderId: entry.order.id,
+        shiftId: shift.id,
         method: entry.payment.method,
         amount: totals.total,
         received:

@@ -59,6 +59,7 @@ model Store {
   payments        Payment[]
   auditLogs       AuditLog[]
   orderSequences  OrderSequence[]
+  paymentParts    PaymentPart[]
 }
 
 model OrderSequence {
@@ -171,6 +172,7 @@ model Shift {
   countedCash Int?
   note        String?
   orders      Order[]
+  payments    Payment[]
 
   @@unique([id, storeId])
 }
@@ -201,6 +203,8 @@ model Order {
   requestHash   String?
   items         OrderItem[]
   payments      Payment[]
+  splitId       String?       @unique
+  paymentParts  PaymentPart[]
 
   @@unique([id, storeId])
   @@unique([storeId, businessDate, dailyNumber])
@@ -245,7 +249,11 @@ model Payment {
   id          String        @id @default(uuid())
   storeId     String
   store       Store         @relation(fields: [storeId], references: [id])
-  orderId     String        @unique
+  orderId     String
+  shiftId     String
+  shift       Shift         @relation(fields: [shiftId, storeId], references: [id, storeId])
+  partId      String?       @unique
+  part        PaymentPart?  @relation(fields: [partId, storeId], references: [id, storeId])
   order       Order         @relation(fields: [orderId, storeId], references: [id, storeId])
   method      PaymentMethod
   amount      Int
@@ -255,7 +263,22 @@ model Payment {
   confirmer   User?         @relation(fields: [confirmedBy, storeId], references: [id, storeId])
   createdAt   DateTime      @default(now())
 
+  @@unique([partId, storeId])
   @@index([storeId, createdAt])
+}
+
+model PaymentPart {
+  id       String   @id @default(uuid())
+  storeId  String
+  store    Store    @relation(fields: [storeId], references: [id])
+  orderId  String
+  order    Order    @relation(fields: [orderId, storeId], references: [id, storeId])
+  position Int
+  amount   Int
+  payment  Payment?
+
+  @@unique([orderId, position])
+  @@unique([id, storeId])
 }
 
 model AuditLog {

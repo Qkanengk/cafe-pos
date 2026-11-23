@@ -29,6 +29,11 @@ async function activeOrder(
     include: orderInclude,
   });
   if (!order) throw new HttpError('Không tìm thấy đơn', 404);
+  if (order.paymentParts?.length)
+    throw new HttpError(
+      'Đơn đã chia đều, không thể sửa món hoặc gộp/tách. Hãy hoàn tất từng phần trước.',
+      409,
+    );
   if (
     replayHash &&
     order.status === 'OPEN' &&

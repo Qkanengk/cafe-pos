@@ -17,19 +17,99 @@ import { posFetch } from '@/lib/pos-fetch';
 import { PaymentConflictError } from '@/lib/payment-conflict';
 import { PrintLinks } from './print-links';
 import type { SaleOrder, BankDetails } from '@/lib/sales-types';
+export function ShareCheckout({
+  order,
+  bank,
+  onPaid,
+}: {
+  order: SaleOrder;
+  bank: BankDetails;
+  onPaid?: (order: SaleOrder) => void;
+}) {
+  const [current, setCurrent] = useState(order),
+    [selected, setSelected] = useState<string | null>(null),
+    [paymentId, setPaymentId] = useState(() => crypto.randomUUID());
+  const part = current.paymentParts?.find((p) => p.id === selected);
+  if (current.status === 'PAID')
+    return (
+      <section className="space-y-4">
+        <h1>Thanh toán thành công</h1>
+        <p>Tất cả các phần đã thanh toán · {current.code}</p>
+        <PrintLinks id={current.id} />
+        <a href="/pos">Bắt đầu đơn mới</a>
+      </section>
+    );
+  return (
+    <section className="space-y-4">
+      <h1>Chia đều · {current.code}</h1>
+      <p>
+        Tổng cộng {formatVnd(current.total)}. Đơn chỉ hoàn tất khi tất cả các
+        phần đã thanh toán.
+      </p>
+      {current.paymentParts?.map((p) => (
+        <div
+          key={p.id}
+          className="flex items-center justify-between border bg-white p-4"
+        >
+          <span>
+            Phần {p.position} · {formatVnd(p.amount)}
+          </span>
+          {p.payment ? (
+            <strong>Đã thanh toán</strong>
+          ) : (
+            <Button
+              onClick={() => {
+                setSelected(p.id);
+                setPaymentId(crypto.randomUUID());
+              }}
+            >
+              Thanh toán phần {p.position}
+            </Button>
+          )}
+        </div>
+      ))}
+      <a href="/orders">Về đơn hàng</a>
+      {part && (
+        <PaymentDialog
+          key={paymentId}
+          order={current}
+          bank={bank}
+          paymentId={paymentId}
+          part={part}
+          onClose={() => {
+            setSelected(null);
+            window.location.href = '/pos?orderId=' + current.id;
+          }}
+          onPaid={(result) => {
+            setCurrent(result);
+            setSelected(null);
+            if (result.status === 'PAID') onPaid?.(result);
+          }}
+        />
+      )}
+    </section>
+  );
+}
 export function PaymentDialog({
   order,
   bank,
   onPaid,
   onClose,
   paymentId,
+  part,
+  onSplit,
 }: {
   order: SaleOrder;
   bank: BankDetails;
   onPaid: (order: SaleOrder) => void;
   onClose: () => void;
   paymentId: string;
+  part?: { id: string; amount: number; position: number };
+  onSplit?: (order: SaleOrder) => void;
 }) {
+  const amount = part?.amount ?? order.total;
+  const [shareCount, setShareCount] = useState('2');
+  const [splitId] = useState(() => crypto.randomUUID());
   const [method, setMethod] = useState<'CASH' | 'BANK_TRANSFER'>('CASH');
   const [received, setReceived] = useState('');
   const [confirmed, setConfirmed] = useState(false);
@@ -43,7 +123,7 @@ export function PaymentDialog({
     renderVietQR({
       bankBin: bank.bankBin,
       account: bank.bankAccount,
-      amount: order.total,
+      amount,
       orderCode: order.code,
     })
       .then((value) => {
@@ -58,11 +138,11 @@ export function PaymentDialog({
     return () => {
       active = false;
     };
-  }, [method, bank.bankBin, bank.bankAccount, order.total, order.code]);
+  }, [method, bank.bankBin, bank.bankAccount, amount, order.code]);
   let change: number | null = null;
   if (received !== '')
     try {
-      change = changeDue(order.total, parseVndInput(received));
+      change = changeDue(amount, parseVndInput(received));
     } catch {}
   async function pay() {
     setBusy(true);
@@ -79,25 +159,28 @@ export function PaymentDialog({
         );
         return;
       }
-      const response = await posFetch('/api/orders/' + order.id + '/pay', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(
-          method === 'CASH'
-            ? {
-                id: paymentId,
-                method,
-                received: parseVndInput(received),
-                version: order.version,
-              }
-            : {
-                id: paymentId,
-                method,
-                confirmed: true,
-                version: order.version,
-              },
-        ),
-      });
+      const response = await posFetch(
+        '/api/orders/' + order.id + (part ? '/shares/' + part.id : '') + '/pay',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(
+            method === 'CASH'
+              ? {
+                  id: paymentId,
+                  method,
+                  received: parseVndInput(received),
+                  version: order.version,
+                }
+              : {
+                  id: paymentId,
+                  method,
+                  confirmed: true,
+                  version: order.version,
+                },
+          ),
+        },
+      );
       const result = await response.json();
       if (response.status === 409 && result.details?.order?.status === 'PAID')
         throw new PaymentConflictError(result.details.order);
@@ -114,6 +197,8 @@ export function PaymentDialog({
       setBusy(false);
     }
   }
+  if (!part && order.paymentParts?.length)
+    return <ShareCheckout order={order} bank={bank} onPaid={onPaid} />;
   if (existingPaid)
     return (
       <Dialog title="Đơn đã được thanh toán" onClose={onClose}>
@@ -143,7 +228,9 @@ export function PaymentDialog({
     );
   return (
     <Dialog
-      title={'Thanh toán ' + order.code}
+      title={
+        'Thanh toán ' + order.code + (part ? ' · Phần ' + part.position : '')
+      }
       className="payment-dialog"
       wide
       onClose={() => {
@@ -157,11 +244,65 @@ export function PaymentDialog({
             data-testid="payment-total"
             className="mt-2 text-3xl font-semibold tracking-tight"
           >
-            {formatVnd(order.total)}
+            {formatVnd(amount)}
           </p>
           <p className="mt-3 text-xs text-stone-500">
             Nội dung: <strong className="text-stone-700">{order.code}</strong>
           </p>
+          {!part && !order.code.startsWith('TAM-') && (
+            <details className="mt-4 text-sm">
+              <summary>Chia đều</summary>
+              <label>
+                Số người
+                <input
+                  aria-label="Số người chia đều"
+                  type="number"
+                  min="2"
+                  max="20"
+                  value={shareCount}
+                  onChange={(e) => setShareCount(e.target.value)}
+                  className="my-2 w-full border p-2"
+                />
+              </label>
+              <p>
+                Khóa chỉnh sửa đơn sau khi chia. Tiền lẻ dồn vào phần đầu; mỗi
+                phần thu tiền mặt hoặc QR riêng.
+              </p>
+              <Button
+                disabled={busy}
+                onClick={async () => {
+                  setBusy(true);
+                  setError('');
+                  try {
+                    const response = await posFetch(
+                      '/api/orders/' + order.id + '/shares',
+                      {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          id: splitId,
+                          count: Number(shareCount),
+                          version: order.version,
+                        }),
+                      },
+                    );
+                    const result = await response.json();
+                    if (!response.ok) throw new Error(result.error);
+                    if (onSplit) onSplit(result);
+                    else window.location.href = '/pos?orderId=' + result.id;
+                  } catch (e) {
+                    setError(
+                      e instanceof Error ? e.message : 'Không thể chia đều',
+                    );
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+              >
+                Xác nhận chia đều
+              </Button>
+            </details>
+          )}
           <div className="mt-7 grid gap-2">
             <Button
               aria-pressed={method === 'CASH'}
@@ -229,7 +370,7 @@ export function PaymentDialog({
                 inputMode="numeric"
               />
               <div className="my-3 grid grid-cols-4 gap-2">
-                {cashNoteSuggestions(order.total).map((value) => (
+                {cashNoteSuggestions(amount).map((value) => (
                   <button
                     type="button"
                     data-testid="cash-suggestion"

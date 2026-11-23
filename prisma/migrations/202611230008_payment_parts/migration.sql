@@ -1,0 +1,15 @@
+ALTER TABLE "Order" ADD COLUMN "splitId" TEXT;
+CREATE UNIQUE INDEX "Order_splitId_key" ON "Order"("splitId");
+DROP INDEX "Payment_orderId_key";
+ALTER TABLE "Payment" ADD COLUMN "shiftId" TEXT, ADD COLUMN "partId" TEXT;
+UPDATE "Payment" p SET "shiftId"=o."shiftId" FROM "Order" o WHERE p."orderId"=o.id;
+ALTER TABLE "Payment" ALTER COLUMN "shiftId" SET NOT NULL;
+ALTER TABLE "Payment" ADD CONSTRAINT "Payment_shiftId_storeId_fkey" FOREIGN KEY("shiftId","storeId") REFERENCES "Shift"("id","storeId") ON DELETE RESTRICT ON UPDATE CASCADE;
+CREATE TABLE "PaymentPart"("id" TEXT NOT NULL,"storeId" TEXT NOT NULL,"orderId" TEXT NOT NULL,"position" INTEGER NOT NULL,"amount" INTEGER NOT NULL CHECK("amount">0),CONSTRAINT "PaymentPart_pkey" PRIMARY KEY("id"));
+CREATE UNIQUE INDEX "PaymentPart_id_storeId_key" ON "PaymentPart"("id","storeId");
+CREATE UNIQUE INDEX "PaymentPart_orderId_position_key" ON "PaymentPart"("orderId","position");
+CREATE UNIQUE INDEX "Payment_partId_key" ON "Payment"("partId");
+CREATE UNIQUE INDEX "Payment_partId_storeId_key" ON "Payment"("partId","storeId");
+ALTER TABLE "PaymentPart" ADD CONSTRAINT "PaymentPart_storeId_fkey" FOREIGN KEY("storeId") REFERENCES "Store"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "PaymentPart" ADD CONSTRAINT "PaymentPart_orderId_storeId_fkey" FOREIGN KEY("orderId","storeId") REFERENCES "Order"("id","storeId") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Payment" ADD CONSTRAINT "Payment_partId_storeId_fkey" FOREIGN KEY("partId","storeId") REFERENCES "PaymentPart"("id","storeId") ON DELETE RESTRICT ON UPDATE CASCADE;

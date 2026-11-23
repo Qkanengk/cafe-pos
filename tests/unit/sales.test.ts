@@ -254,6 +254,7 @@ describe('server sales', () => {
       data: {
         storeId: 'store',
         orderId: id,
+        shiftId: 'shift',
         method: 'CASH',
         amount: 70000,
         received: 100000,

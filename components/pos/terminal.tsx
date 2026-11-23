@@ -1207,6 +1207,10 @@ export function Terminal({
           order={prepared}
           bank={bank}
           onPaid={complete}
+          onSplit={(order) => {
+            clearWorkingCart(actorId, cartScope, order.id);
+            window.location.href = '/pos?orderId=' + order.id;
+          }}
           onClose={() => setPaymentOpen(false)}
         />
       )}

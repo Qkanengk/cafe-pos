@@ -56,6 +56,12 @@ export type SaleOrder = {
     change: number | null;
     confirmedBy: string | null;
   }[];
+  paymentParts?: {
+    id: string;
+    position: number;
+    amount: number;
+    payment: { id: string } | null;
+  }[];
 };
 export type ShiftView = {
   id: string;

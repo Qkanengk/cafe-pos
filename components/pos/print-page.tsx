@@ -149,28 +149,37 @@ export async function PrintPage({
                 <dt>TỔNG CỘNG</dt>
                 <dd data-testid="receipt-total">{formatVnd(order.total)}</dd>
               </div>
-              {payment && (
-                <>
-                  <div className="flex justify-between">
-                    <dt>Thanh toán</dt>
-                    <dd>
-                      {payment.method === 'CASH' ? 'Tiền mặt' : 'Chuyển khoản'}
-                    </dd>
+              {order.payments
+                .filter((p) => p.amount >= 0)
+                .map((payment) => (
+                  <div
+                    key={payment.id}
+                    className="border-t border-dashed border-stone-300 pt-2"
+                  >
+                    <div className="flex justify-between">
+                      <dt>Thanh toán</dt>
+                      <dd>
+                        {payment.method === 'CASH'
+                          ? 'Tiền mặt'
+                          : 'Chuyển khoản'}
+                        {' · '}
+                        {formatVnd(payment.amount)}
+                      </dd>
+                    </div>
+                    {payment.method === 'CASH' && (
+                      <>
+                        <div className="flex justify-between">
+                          <dt>Tiền khách đưa</dt>
+                          <dd>{formatVnd(payment.received ?? 0)}</dd>
+                        </div>
+                        <div className="flex justify-between">
+                          <dt>Tiền thối</dt>
+                          <dd>{formatVnd(payment.change ?? 0)}</dd>
+                        </div>
+                      </>
+                    )}
                   </div>
-                  {payment.method === 'CASH' && (
-                    <>
-                      <div className="flex justify-between">
-                        <dt>Tiền khách đưa</dt>
-                        <dd>{formatVnd(payment.received ?? 0)}</dd>
-                      </div>
-                      <div className="flex justify-between">
-                        <dt>Tiền thối</dt>
-                        <dd>{formatVnd(payment.change ?? 0)}</dd>
-                      </div>
-                    </>
-                  )}
-                </>
-              )}
+                ))}
             </dl>
             {confirmer && (
               <p className="mt-3">Người xác nhận: {confirmer.name}</p>

@@ -5,6 +5,7 @@ import { loadOrderResolution } from '@/lib/order-resolution';
 import { PrintLinks } from '@/components/pos/print-links';
 import { formatVnd } from '@/lib/money';
 import { OfflineWorkspace } from '@/components/pos/offline-workspace';
+import { ShareCheckout } from '@/components/pos/payment';
 export default async function Page({
   searchParams,
 }: {
@@ -69,7 +70,12 @@ export default async function Page({
       db.store.findUniqueOrThrow({ where: { id: storeId } }),
       db.shift.findFirst({ where: { storeId, closedAt: null } }),
     ]);
-  return (
+  return initialOrder?.paymentParts.length ? (
+    <ShareCheckout
+      order={JSON.parse(JSON.stringify(initialOrder))}
+      bank={store}
+    />
+  ) : (
     <Terminal
       actorId={actorId}
       key={initialOrder?.id ?? params.tableId ?? 'new'}
