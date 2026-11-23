@@ -7,6 +7,9 @@ type Credentials =
   | { mode: 'password'; email: string; password: string };
 const fakePinHash = hashSync('not-a-real-account', 10);
 export async function authenticateLogin(data: Credentials, ip: string) {
+  const ipSuccess =
+    data.mode === 'pin' ? pinLimiter.reserve([], ip) : undefined;
+  if (ipSuccess === null) throw new HttpError(pinLockMessage, 429);
   const user = await db.user.findUnique({
     where:
       data.mode === 'pin'
@@ -18,7 +21,7 @@ export async function authenticateLogin(data: Credentials, ip: string) {
     return null;
   }
   const success =
-    data.mode === 'pin' ? pinLimiter.reserve([user.id], ip) : undefined;
+    data.mode === 'pin' ? pinLimiter.reserve([user.id]) : undefined;
   if (success === null) throw new HttpError(pinLockMessage, 429);
   const valid =
     data.mode === 'pin'
@@ -28,5 +31,6 @@ export async function authenticateLogin(data: Credentials, ip: string) {
         (await compare(data.password, user.passwordHash));
   if (!valid) return null;
   success?.();
+  ipSuccess?.();
   return user;
 }

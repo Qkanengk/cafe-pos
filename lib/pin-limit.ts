@@ -2,13 +2,13 @@ type Bucket = { count: number; until: number };
 export class PinLimiter {
   private buckets = new Map<string, Bucket>();
   constructor(private readonly capacity = 10000) {}
-  reserve(users: string[], ip: string) {
+  reserve(users: string[], ip?: string) {
     const now = Date.now();
     for (const [key, bucket] of this.buckets)
       if (bucket.until <= now) this.buckets.delete(key);
     const userKeys = users.map((id) => 'user:' + id),
       ipKey = 'ip:' + ip;
-    const keys = [...new Set([...userKeys, ipKey])];
+    const keys = [...new Set([...userKeys, ...(ip ? [ipKey] : [])])];
     if (
       keys.some(
         (k) => (this.buckets.get(k)?.count ?? 0) >= (k === ipKey ? 20 : 5),

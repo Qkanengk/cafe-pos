@@ -98,16 +98,21 @@ describe('PIN protection', () => {
   it('does not allocate limiter entries for made-up accounts', async () => {
     mocks.findUnique.mockResolvedValue(null);
     const reserve = vi.spyOn(pinLimiter, 'reserve');
-    for (let i = 0; i < 30; i++)
+    for (let i = 0; i < 20; i++)
       expect(
         await authenticateLogin(
           { mode: 'pin', userId: 'unknown-' + i, pin: '0000' },
           'a',
         ),
       ).toBeNull();
-    expect(reserve).not.toHaveBeenCalled();
+    expect(reserve.mock.calls.every(([users]) => users.length === 0)).toBe(
+      true,
+    );
+    await expect(
+      authenticateLogin({ mode: 'pin', userId: 'another', pin: '0000' }, 'a'),
+    ).rejects.toMatchObject({ status: 429 });
     reserve.mockRestore();
-    expect(mocks.compare).toHaveBeenCalledTimes(30);
+    expect(mocks.compare).toHaveBeenCalledTimes(20);
   });
   it('evicts old buckets instead of blocking unrelated users when capacity is reached', () => {
     const limiter = new PinLimiter(4);
