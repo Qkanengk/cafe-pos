@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
 import { dirname } from 'node:path';
-import { chromium } from '@playwright/test';
+import { chromium, expect } from '@playwright/test';
 
 const baseURL = process.env.BASE_URL ?? 'http://localhost:3000';
 const screenshot = process.env.SCREENSHOT_PATH ?? 'test-results/admin-menu.png';
@@ -92,6 +92,16 @@ try {
   await page.getByLabel('Tên món', { exact: true }).fill('Cà phê muối');
   await page.getByLabel('Danh mục', { exact: true }).selectOption(category.id);
   const editingPrice = page.getByLabel('Giá size S (₫)', { exact: true });
+  await editingPrice.fill('-1');
+  await expect(
+    page.getByText('Số tiền không được âm. Giá bán phải lớn hơn 0 ₫.', {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await editingPrice.fill('9999999999999');
+  await expect(
+    page.getByText('Số tiền quá lớn. Tối đa 2.147.483.647 ₫.', { exact: true }),
+  ).toBeVisible();
   await editingPrice.fill('50000');
   await editingPrice.blur();
   assert.equal(await editingPrice.inputValue(), '50.000');
