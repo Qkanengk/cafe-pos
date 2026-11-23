@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
+import { ZodError } from 'zod';
 import { hash, compare } from 'bcryptjs';
 import { db } from './db';
 import { COOKIE_NAME, verifySession } from './session';
@@ -289,9 +290,9 @@ export async function adminRequest(request: NextRequest, resource: string) {
         { error: error.message },
         { status: error.status },
       );
-    if (error instanceof Error && error.name === 'ZodError')
+    if (error instanceof ZodError)
       return NextResponse.json(
-        { error: 'Thông tin không hợp lệ. Vui lòng kiểm tra lại.' },
+        { error: error.issues.map((issue) => issue.message).join(' · ') },
         { status: 400 },
       );
     if (error instanceof Prisma.PrismaClientKnownRequestError) {

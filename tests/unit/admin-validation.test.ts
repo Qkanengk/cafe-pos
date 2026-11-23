@@ -8,6 +8,27 @@ import {
 } from '../../lib/admin-validation';
 const categoryId = '7ff9e456-8548-4f88-9c18-1d2b655de2ce';
 describe('shared admin validation', () => {
+  it('names the invalid price and gives a clear Vietnamese correction', () => {
+    for (const [value, message] of [
+      ['', 'Giá size S'],
+      [0, 'lớn hơn 0'],
+      [-1, 'Giá size S'],
+      [2147483648, '2.147.483.647'],
+    ] as const) {
+      const parsed = productSchema.safeParse({
+        name: 'Coffee',
+        categoryId,
+        sortOrder: 0,
+        isAvailable: true,
+        prices: { S: value, M: 25000, L: 30000 },
+      });
+      expect(parsed.success).toBe(false);
+      if (!parsed.success)
+        expect(
+          parsed.error.issues.map((issue) => issue.message).join(' '),
+        ).toContain(message);
+    }
+  });
   it('parses formatted VND prices without changing their magnitude', () => {
     const product = productSchema.parse({
       name: 'Latte',
@@ -44,17 +65,18 @@ describe('shared admin validation', () => {
       categorySchema.safeParse({ name: 'Trà', sortOrder: -1 }).success,
     ).toBe(false);
   });
-  it('requires exactly priced S/M/L sizes with integer nonnegative VND', () => {
+  it('requires exactly priced S/M/L sizes with positive whole VND', () => {
     const product = {
       name: 'Latte',
       categoryId,
       imageUrl: '',
       sortOrder: 0,
       isAvailable: true,
-      prices: { S: 0, M: 30000, L: 35000 },
+      prices: { S: 20000, M: 30000, L: 35000 },
     };
     expect(productSchema.safeParse(product).success).toBe(true);
     for (const prices of [
+      { S: 0, M: 2, L: 3 },
       { S: 1, M: 2 },
       { S: -1, M: 2, L: 3 },
       { S: 1.5, M: 2, L: 3 },

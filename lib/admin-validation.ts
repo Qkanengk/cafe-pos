@@ -6,10 +6,15 @@ const name = z
   .trim()
   .min(1, 'Vui lòng nhập tên')
   .max(120, 'Tối đa 120 ký tự');
-const money = z.preprocess(
-  (value) => (typeof value === 'string' ? parseVndInput(value) : value),
-  z.number().int().min(0).max(2147483647),
-);
+const money = (label: string) =>
+  z.preprocess(
+    (value) => (typeof value === 'string' ? parseVndInput(value) : value),
+    z
+      .number({ error: label + ': nhập số tiền VND, ví dụ 25.000.' })
+      .int(label + ': giá phải là số đồng nguyên.')
+      .min(1, label + ': giá phải lớn hơn 0 ₫.')
+      .max(2147483647, label + ': tối đa 2.147.483.647 ₫.'),
+  );
 const sortOrder = z.number().int().min(0).max(9999);
 const id = z.string().uuid();
 export const banks = [
@@ -52,14 +57,38 @@ export const productSchema = z.object({
         ),
     ])
     .default(''),
-  prices: z.union([
-    z.object({ S: money, M: money, L: money }),
-    z.object({ Phần: money }),
-  ]),
+  prices: z
+    .object({
+      S: money('Giá size S').optional(),
+      M: money('Giá size M').optional(),
+      L: money('Giá size L').optional(),
+      Phần: money('Giá Phần').optional(),
+    })
+    .superRefine((prices, context) => {
+      if (prices.Phần !== undefined) {
+        if (['S', 'M', 'L'].some((key) => prices[key as 'S'] !== undefined))
+          context.addIssue({
+            code: 'custom',
+            message: 'Chỉ chọn giá Phần hoặc đủ giá S/M/L, không dùng cả hai.',
+          });
+      } else
+        for (const key of ['S', 'M', 'L'] as const)
+          if (prices[key] === undefined)
+            context.addIssue({
+              code: 'custom',
+              path: [key],
+              message: 'Nhập giá size ' + key + ' (ví dụ 25.000).',
+            });
+    })
+    .transform((prices): Record<string, number> =>
+      prices.Phần !== undefined
+        ? { Phần: prices.Phần }
+        : { S: prices.S!, M: prices.M!, L: prices.L! },
+    ),
 });
 export const toppingSchema = z.object({
   name,
-  price: money,
+  price: money('Giá topping'),
   isAvailable: z.boolean(),
 });
 export const userSchema = z
