@@ -53,8 +53,17 @@ it('treats checkout timeout as an offline-eligible transport failure', async () 
   await checkoutWithFallback(input, null);
   expect(prepareLocal).toHaveBeenCalledWith(input);
 });
-const committed = {
+const committed: SaleOrder = {
   id: input.id,
+  version: 1,
+  subtotal: 25000,
+  total: 25000,
+  createdAt: new Date().toISOString(),
+  paidAt: null,
+  createdBy: 'cashier',
+  creator: { name: 'Lan' },
+  table: null,
+  payments: [],
   code: 'CF001',
   status: 'OPEN',
   type: 'TAKEAWAY',
@@ -64,6 +73,10 @@ const committed = {
   discountValue: 0,
   items: [
     {
+      id: input.id,
+      productId: input.id,
+      nameSnapshot: 'Coffee · M',
+      priceSnapshot: 25000,
       variantId: input.lines[0].variantId,
       quantity: 1,
       note: '',
@@ -71,7 +84,7 @@ const committed = {
       toppings: [],
     },
   ],
-} as SaleOrder;
+};
 it('recovers a matching committed order before creating a local fallback', async () => {
   vi.mocked(fetch)
     .mockRejectedValueOnce(new RequestTimeoutError())
