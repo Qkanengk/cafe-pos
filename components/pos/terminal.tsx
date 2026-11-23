@@ -33,6 +33,7 @@ import {
   reapplyPending,
   orderCompletionMessage,
   orderLineVariant,
+  restoreLineIdentities,
   type WorkingLine as Line,
 } from '@/lib/order-recovery';
 import {
@@ -145,7 +146,7 @@ export function Terminal({
         );
         if (!active) return;
         if (saved) {
-          setLines(saved.lines);
+          setLines(restoreLineIdentities(saved.lines));
           setId(saved.id);
           setPaymentId((current) => tabPaymentId(actorId, saved.id, current));
           setType(saved.type);

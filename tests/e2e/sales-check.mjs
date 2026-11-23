@@ -34,19 +34,29 @@ async function api(context, path, method = 'GET', data, status = 200) {
   return body;
 }
 async function svgCheck(p) {
-  const shapes = await p.locator('svg:visible').evaluateAll((nodes) =>
-    nodes.map((node) => ({
-      width: node.getBoundingClientRect().width,
-      height: node.getBoundingClientRect().height,
-      shapes: node.querySelectorAll(
-        'path,circle,line,rect,polyline,polygon,ellipse',
-      ).length,
-    })),
+  const shapes = await p.evaluate(() =>
+    [...document.querySelectorAll('svg')]
+      .filter(
+        (node) =>
+          node.getClientRects().length > 0 &&
+          getComputedStyle(node).visibility !== 'hidden',
+      )
+      .map((node) => ({
+        width: node.getBoundingClientRect().width,
+        height: node.getBoundingClientRect().height,
+        icon: node.getAttribute('class'),
+        shapes: node.querySelectorAll(
+          'path,circle,line,rect,polyline,polygon,ellipse',
+        ).length,
+      })),
   );
   assert.ok(shapes.length > 0, 'Bundled icons should be present');
   assert.ok(
     shapes.every((s) => s.width > 0 && s.height > 0 && s.shapes > 0),
-    'All visible icons must have vector shapes and dimensions',
+    'All visible icons must have vector shapes and dimensions: ' +
+      JSON.stringify(
+        shapes.filter((s) => s.width <= 0 || s.height <= 0 || s.shapes === 0),
+      ),
   );
   assert.equal(
     await p

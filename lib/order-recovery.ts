@@ -1,4 +1,12 @@
 import type { SaleOrder, MenuVariant } from './sales-types';
+import { z } from 'zod';
+export function restoreLineIdentities(lines: WorkingLine[]) {
+  return lines.map((line) =>
+    line.snapshot || z.uuid().safeParse(line.id).success
+      ? line
+      : { ...line, id: crypto.randomUUID() },
+  );
+}
 export function orderCompletionMessage(
   order: Pick<SaleOrder, 'status' | 'total' | 'tableId'>,
 ) {

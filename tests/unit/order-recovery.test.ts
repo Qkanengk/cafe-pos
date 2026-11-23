@@ -4,6 +4,7 @@ import {
   reapplyPending,
   orderCompletionMessage,
   orderLineVariant,
+  restoreLineIdentities,
 } from '../../lib/order-recovery';
 import type { SaleOrder } from '../../lib/sales-types';
 const item: SaleOrder['items'][number] = {
@@ -116,4 +117,13 @@ it('does not re-add a pending line already committed before the response was los
   expect(
     reapplyPending(base, fresh, [...orderLines(base), pending]),
   ).toHaveLength(2);
+});
+it('migrates old pending line keys to stable UUIDs without changing server identities', () => {
+  const existing = orderLines(base);
+  const legacy = { ...existing[0], id: 'pending-old-key', snapshot: undefined };
+  const restored = restoreLineIdentities([...existing, legacy]);
+  expect(restored[0]).toEqual(existing[0]);
+  expect(restored[1].id).toMatch(/^[0-9a-f-]{36}$/);
+  expect(restoreLineIdentities([restored[1]])).toEqual([restored[1]]);
+  expect(restoreLineIdentities([])).toEqual([]);
 });
