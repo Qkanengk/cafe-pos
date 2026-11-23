@@ -233,6 +233,16 @@ export function AdminWorkspace({
       setData((prev) => ({
         ...prev,
         [resource]: resource === 'settings' ? [next] : next,
+        ...(resource === 'toppings' && method === 'DELETE'
+          ? {
+              products: prev.products?.map((product) => ({
+                ...product,
+                toppings: ((product.toppings ?? []) as { id: string }[]).filter(
+                  (topping) => topping.id !== result.id,
+                ),
+              })),
+            }
+          : {}),
       }));
       setNotice(
         method === 'DELETE' ? 'Đã xóa thành công.' : 'Đã lưu thay đổi.',
