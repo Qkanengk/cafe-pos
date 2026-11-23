@@ -3,7 +3,7 @@ import { db } from './db';
 import { HttpError } from './api';
 import { verifyCatalog } from './offline-catalog';
 import { cartTotal, changeDue } from './money';
-import { lockStore, nextOrderCode } from './sales';
+import { lockStore, nextOrderCode, vietnamDay } from './sales';
 import type { SyncEntry } from './sync-validation';
 export async function syncOrder(
   actor: { id: string; storeId: string },
@@ -27,7 +27,16 @@ export async function syncOrder(
       where: { id: entry.order.id },
       include: { payments: true },
     });
-    if (existing) {
+    const unconfirmed =
+      existing?.status === 'OPEN' &&
+      existing.version === 1 &&
+      existing.storeId === actor.storeId &&
+      existing.createdBy === actor.id &&
+      existing.shiftId === entry.shiftId &&
+      existing.payments.length === 0 &&
+      existing.requestHash ===
+        createHash('sha256').update(JSON.stringify(entry.order)).digest('hex');
+    if (existing && !unconfirmed) {
       if (
         existing.storeId !== actor.storeId ||
         existing.createdBy !== actor.id ||
@@ -116,27 +125,46 @@ export async function syncOrder(
       entry.payment.method === 'CASH'
         ? changeDue(totals.total, entry.payment.received)
         : null;
-    const numbering = await nextOrderCode(tx, actor.storeId, paidAt);
-    await tx.order.create({
-      data: {
-        id: entry.order.id,
-        storeId: actor.storeId,
-        shiftId: shift.id,
-        createdBy: actor.id,
-        type: entry.order.type,
-        tableId: entry.order.type === 'DINE_IN' ? entry.order.tableId : null,
-        status: 'PAID',
-        createdAt,
-        paidAt,
-        subtotal: totals.subtotal,
-        total: totals.total,
-        discountType: entry.order.discount?.type,
-        discountValue: entry.order.discount?.value ?? 0,
-        note: entry.order.note,
-        requestHash: hash,
-        ...numbering,
-      },
-    });
+    const numbering =
+      unconfirmed && existing.businessDate === vietnamDay(paidAt)
+        ? {
+            businessDate: existing.businessDate,
+            dailyNumber: existing.dailyNumber,
+            code: existing.code,
+          }
+        : await nextOrderCode(tx, actor.storeId, paidAt);
+    const data = {
+      id: entry.order.id,
+      storeId: actor.storeId,
+      shiftId: shift.id,
+      createdBy: actor.id,
+      type: entry.order.type,
+      tableId: entry.order.type === 'DINE_IN' ? entry.order.tableId : null,
+      status: 'PAID',
+      createdAt,
+      paidAt,
+      subtotal: totals.subtotal,
+      total: totals.total,
+      discountType: entry.order.discount?.type,
+      discountValue: entry.order.discount?.value ?? 0,
+      note: entry.order.note,
+      requestHash: hash,
+      ...numbering,
+    };
+    if (unconfirmed) {
+      await tx.orderItemTopping.deleteMany({
+        where: {
+          orderItem: { orderId: entry.order.id, storeId: actor.storeId },
+        },
+      });
+      await tx.orderItem.deleteMany({
+        where: { orderId: entry.order.id, storeId: actor.storeId },
+      });
+      await tx.order.update({
+        where: { id: entry.order.id },
+        data: { ...data, version: { increment: 1 } },
+      });
+    } else await tx.order.create({ data });
     for (const { product, variant, selected, line } of lines) {
       const item = await tx.orderItem.create({
         data: {

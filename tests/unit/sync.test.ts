@@ -1,4 +1,5 @@
 import { beforeEach, describe, it, expect, vi } from 'vitest';
+import { createHash } from 'node:crypto';
 const mocks = vi.hoisted(() => {
   const model = () => ({
     findFirst: vi.fn(),
@@ -7,6 +8,8 @@ const mocks = vi.hoisted(() => {
     create: vi.fn(),
     createMany: vi.fn(),
     aggregate: vi.fn(),
+    update: vi.fn(),
+    deleteMany: vi.fn(),
   });
   return {
     db: {
@@ -91,6 +94,11 @@ beforeEach(() => {
     orders.set(data.id, order);
     return order;
   });
+  mocks.db.order.update.mockImplementation(async ({ where, data }) => {
+    const order = { ...orders.get(where.id), ...data, payments: [] };
+    orders.set(where.id, order);
+    return order;
+  });
   mocks.db.payment.create.mockImplementation(async ({ data }) => {
     payments.set(data.id, data);
     orders.get(data.orderId)!.payments = [data];
@@ -102,6 +110,26 @@ beforeEach(() => {
   mocks.db.orderItem.create.mockResolvedValue({ id: 'item' });
 });
 describe('offline sync transaction', () => {
+  it('promotes only an untouched same-UUID checkout after its response was lost', async () => {
+    const input = entry();
+    mocks.db.order.findUnique.mockResolvedValueOnce({
+      id,
+      storeId,
+      createdBy: userId,
+      shiftId,
+      status: 'OPEN',
+      version: 1,
+      payments: [],
+      requestHash: createHash('sha256')
+        .update(JSON.stringify(input.order))
+        .digest('hex'),
+    });
+    await syncOrder(actor, input);
+    await syncOrder(actor, input);
+    expect(mocks.db.order.create).not.toHaveBeenCalled();
+    expect(mocks.db.order.update).toHaveBeenCalledTimes(1);
+    expect(mocks.db.payment.create).toHaveBeenCalledTimes(1);
+  });
   it('honors the signed sale-time price even after live catalog prices change', async () => {
     mocks.db.productVariant.findMany.mockResolvedValue([{ id, price: 99000 }]);
     await syncOrder(actor, entry());

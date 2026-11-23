@@ -19,6 +19,7 @@ import { PaymentDialog } from './payment';
 import { PrintLinks } from './print-links';
 import { OrderTools } from './order-tools';
 import { prepareLocal, syncedCode } from '@/lib/offline';
+import { checkoutWithFallback } from '@/lib/checkout-client';
 import {
   cartTotal,
   lineTotal,
@@ -279,20 +280,7 @@ export function Terminal({
         if (!hold) setPaymentOpen(true);
         return;
       }
-      const response = await fetch(
-        prepared ? '/api/orders/' + id : '/api/orders',
-        {
-          method: prepared ? 'PUT' : 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(
-            prepared
-              ? { version: prepared.version, order: input.data }
-              : input.data,
-          ),
-        },
-      );
-      const order = await response.json();
-      if (!response.ok) throw new Error(order.error);
+      const order = await checkoutWithFallback(input.data, prepared);
       if (order.status === 'PAID') {
         complete(order);
         return;
