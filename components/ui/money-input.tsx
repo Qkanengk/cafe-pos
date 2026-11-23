@@ -1,6 +1,5 @@
 'use client';
 import { useState, type InputHTMLAttributes } from 'react';
-import { flushSync } from 'react-dom';
 import { Input } from './input';
 import { parseVndInput } from '@/lib/money';
 type Props = Omit<
@@ -17,10 +16,10 @@ export function MoneyInput({
   grouped = true,
   ...props
 }: Props) {
-  const [focused, setFocused] = useState(false);
+  const [editing, setEditing] = useState<string | null>(null);
   const amount = parseVndInput(value);
   const display =
-    !focused && String(value) !== '' && Number.isFinite(amount) && grouped
+    String(value) !== '' && Number.isFinite(amount) && grouped
       ? new Intl.NumberFormat('vi-VN').format(amount)
       : String(value);
   return (
@@ -28,24 +27,14 @@ export function MoneyInput({
       {...props}
       type="text"
       inputMode="numeric"
-      value={display}
+      value={editing ?? display}
       aria-invalid={String(value) !== '' && !Number.isFinite(amount)}
-      onFocus={(event) => {
-        const input = event.currentTarget;
-        const start = input.selectionStart,
-          end = input.selectionEnd,
-          previous = input.value;
-        flushSync(() => setFocused(true));
-        if (start !== null && end !== null) {
-          const position = (index: number) =>
-            input.value === previous.replace(/[.,]/g, '')
-              ? previous.slice(0, index).replace(/[.,]/g, '').length
-              : Math.min(index, input.value.length);
-          input.setSelectionRange(position(start), position(end));
-        }
+      onFocus={(event) => setEditing(event.currentTarget.value)}
+      onBlur={() => setEditing(null)}
+      onChange={(event) => {
+        setEditing(event.target.value);
+        onValueChange(event.target.value);
       }}
-      onBlur={() => setFocused(false)}
-      onChange={(e) => onValueChange(e.target.value)}
     />
   );
 }
