@@ -57,3 +57,41 @@ export function cashSuggestions(total: number): number[] {
   ];
   return [...new Set(suggestions)].sort((a, b) => a - b).slice(0, 5);
 }
+
+export type PaymentValue = {
+  method: 'CASH' | 'BANK_TRANSFER';
+  amount: number;
+  received?: number | null;
+  change?: number | null;
+};
+export function paymentTotals(payments: readonly PaymentValue[]) {
+  return payments.reduce(
+    (totals, payment) => {
+      vnd(payment.amount);
+      if (payment.method === 'BANK_TRANSFER') {
+        totals.bank = vnd(totals.bank + payment.amount);
+      } else {
+        const received = vnd(payment.received ?? payment.amount);
+        const change = vnd(payment.change ?? 0);
+        if (change > received)
+          throw new RangeError('Change exceeds received cash');
+        totals.cash = vnd(totals.cash + vnd(received - change));
+      }
+      return totals;
+    },
+    { cash: 0, bank: 0 },
+  );
+}
+export function expectedCash(
+  openingCash: number,
+  payments: readonly PaymentValue[],
+): number {
+  return vnd(vnd(openingCash) + paymentTotals(payments).cash);
+}
+export function shiftDifference(expected: number, counted: number): number {
+  return vnd(counted) - vnd(expected);
+}
+export function formatVnd(value: number): string {
+  if (!Number.isSafeInteger(value)) throw new RangeError('Invalid VND');
+  return new Intl.NumberFormat('vi-VN').format(value) + ' ₫';
+}

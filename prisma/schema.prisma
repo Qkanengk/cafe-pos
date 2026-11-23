@@ -61,19 +61,20 @@ model Store {
 }
 
 model User {
-  id           String     @id @default(uuid())
-  storeId      String
-  store        Store      @relation(fields: [storeId], references: [id])
-  name         String
-  role         Role
-  email        String?    @unique
-  passwordHash String?
-  pinHash      String
-  isActive     Boolean    @default(true)
-  openedShifts Shift[]    @relation("OpenedBy")
-  closedShifts Shift[]    @relation("ClosedBy")
-  orders       Order[]
-  auditLogs    AuditLog[]
+  id                String     @id @default(uuid())
+  storeId           String
+  store             Store      @relation(fields: [storeId], references: [id])
+  name              String
+  role              Role
+  email             String?    @unique
+  passwordHash      String?
+  pinHash           String
+  isActive          Boolean    @default(true)
+  openedShifts      Shift[]    @relation("OpenedBy")
+  closedShifts      Shift[]    @relation("ClosedBy")
+  orders            Order[]
+  auditLogs         AuditLog[]
+  confirmedPayments Payment[]
 
   @@unique([id, storeId])
 }
@@ -181,10 +182,15 @@ model Order {
   code          String
   version       Int           @default(1)
   note          String?
+  businessDate  String        @default("")
+  dailyNumber   Int?
+  requestHash   String?
   items         OrderItem[]
   payments      Payment[]
 
   @@unique([id, storeId])
+  @@unique([storeId, businessDate, dailyNumber])
+  @@unique([storeId, code])
   @@index([storeId, createdAt])
 }
 
@@ -222,16 +228,18 @@ model OrderItemTopping {
 }
 
 model Payment {
-  id        String        @id @default(uuid())
-  storeId   String
-  store     Store         @relation(fields: [storeId], references: [id])
-  orderId   String
-  order     Order         @relation(fields: [orderId, storeId], references: [id, storeId])
-  method    PaymentMethod
-  amount    Int
-  received  Int?
-  change    Int?
-  createdAt DateTime      @default(now())
+  id          String        @id @default(uuid())
+  storeId     String
+  store       Store         @relation(fields: [storeId], references: [id])
+  orderId     String        @unique
+  order       Order         @relation(fields: [orderId, storeId], references: [id, storeId])
+  method      PaymentMethod
+  amount      Int
+  received    Int?
+  change      Int?
+  confirmedBy String?
+  confirmer   User?         @relation(fields: [confirmedBy, storeId], references: [id, storeId])
+  createdAt   DateTime      @default(now())
 
   @@index([storeId, createdAt])
 }
