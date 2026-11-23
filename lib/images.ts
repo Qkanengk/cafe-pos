@@ -41,7 +41,8 @@ export function imageType(type: string, data: Uint8Array) {
   if (!valid) throw new ImageError('Nội dung tệp không khớp định dạng ảnh.');
   return mime;
 }
-const blocked = new BlockList();
+const blocked4 = new BlockList(),
+  blocked6 = new BlockList();
 for (const [address, bits] of [
   ['0.0.0.0', 8],
   ['10.0.0.0', 8],
@@ -58,7 +59,7 @@ for (const [address, bits] of [
   ['224.0.0.0', 4],
   ['240.0.0.0', 4],
 ] as const)
-  blocked.addSubnet(address, bits, 'ipv4');
+  blocked4.addSubnet(address, bits, 'ipv4');
 for (const [address, bits] of [
   ['::', 96],
   ['::1', 128],
@@ -71,10 +72,14 @@ for (const [address, bits] of [
   ['2001::', 32],
   ['64:ff9b::', 96],
 ] as const)
-  blocked.addSubnet(address, bits, 'ipv6');
+  blocked6.addSubnet(address, bits, 'ipv6');
 export function publicImageAddress(address: string) {
   const family = isIP(address);
-  return !!family && !blocked.check(address, family === 4 ? 'ipv4' : 'ipv6');
+  return family === 4
+    ? !blocked4.check(address, 'ipv4')
+    : family === 6
+      ? !blocked6.check(address, 'ipv6')
+      : false;
 }
 function imagePath(storeId: string, name: string) {
   if (

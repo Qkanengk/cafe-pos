@@ -57,6 +57,7 @@ describe('shared admin validation', () => {
     expect(categorySchema.parse({ name: '  Cà phê  ', sortOrder: 1 })).toEqual({
       name: 'Cà phê',
       sortOrder: 1,
+      isActive: true,
     });
     expect(categorySchema.safeParse({ name: ' ', sortOrder: 0 }).success).toBe(
       false,

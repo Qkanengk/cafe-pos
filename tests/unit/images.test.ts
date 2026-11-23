@@ -68,6 +68,7 @@ it('blocks private, mapped, metadata and loopback network targets', async () => 
   ])
     expect(publicImageAddress(ip)).toBe(false);
   expect(publicImageAddress('8.8.8.8')).toBe(true);
+  expect(publicImageAddress('2001:4860:4860::8888')).toBe(true);
   await expect(
     validateImageUrl('http://127.0.0.1/api/admin/products', 'store'),
   ).rejects.toThrow('máy chủ công khai');

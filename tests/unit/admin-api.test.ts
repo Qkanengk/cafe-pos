@@ -160,7 +160,7 @@ describe('owner admin API', () => {
       ).status,
     ).toBe(201);
     expect(mocks.db.category.create).toHaveBeenCalledWith({
-      data: { name: 'Trà', sortOrder: 2, storeId: 'store' },
+      data: { name: 'Trà', sortOrder: 2, storeId: 'store', isActive: true },
     });
     expect(mocks.db.auditLog.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
