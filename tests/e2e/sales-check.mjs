@@ -572,6 +572,17 @@ try {
   console.log(
     'PASS responsive: POS fits 390px phone; no browser runtime errors',
   );
+  const logout = page.getByRole('button', { name: 'Đăng xuất', exact: true });
+  await expect(logout).toBeInViewport();
+  await page.screenshot({ path: shots + '/mobile-signout.png' });
+  await logout.click();
+  await page.waitForURL('**/login');
+  await expect(
+    page.getByRole('button', { name: 'Nhân viên', exact: true }),
+  ).toBeVisible();
+  console.log(
+    'PASS mobile sign-out: visible in bottom navigation and returns to login',
+  );
   console.log(
     'PASS screenshots: ' +
       [

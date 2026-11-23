@@ -450,18 +450,38 @@ body {
     border-top: 1px solid #deded8;
     overflow: auto;
   }
-  .rail-brand,
-  .rail-user {
+  .rail-brand {
     display: none;
   }
+  .rail-user {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    margin: 0;
+    padding: 0 4px;
+    border-top: 0;
+    border-left: 1px solid #deded8;
+    background: white;
+  }
+  .rail-user > span,
+  .rail-user > small {
+    display: none;
+  }
+  .rail-user button {
+    width: 44px;
+    height: 44px;
+  }
   .app-rail nav {
+    min-width: 0;
+    overflow-x: auto;
     flex-direction: row;
     flex: 1;
-    justify-content: space-around;
+    justify-content: flex-start;
     padding: 3px;
     gap: 2px;
   }
   .app-rail nav a {
+    flex-shrink: 0;
     min-width: 54px;
     min-height: 56px;
     font-size: 9px;
