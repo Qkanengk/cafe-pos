@@ -26,7 +26,10 @@ export async function authenticateLogin(data: Credentials, ip?: string) {
   }
   const success =
     data.mode === 'pin' ? pinLimiter.reserve([user.id]) : undefined;
-  if (success === null) throw new HttpError(pinLockMessage, 429);
+  if (success === null) {
+    ipSuccess?.();
+    throw new HttpError(pinLockMessage, 429);
+  }
   const valid =
     data.mode === 'pin'
       ? user.role === 'CASHIER' && (await compare(data.pin, user.pinHash))

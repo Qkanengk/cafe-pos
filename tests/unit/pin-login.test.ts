@@ -33,6 +33,25 @@ afterEach(() => {
   pinLimiter.clear();
 });
 describe('PIN protection', () => {
+  it('does not spend the source budget on already-locked accounts', async () => {
+    for (let i = 0; i < 5; i++)
+      await authenticateLogin({ mode: 'pin', userId: 'u', pin: '9999' }, 'a');
+    for (let i = 0; i < 25; i++)
+      await expect(
+        authenticateLogin({ mode: 'pin', userId: 'u', pin: '9999' }, 'b'),
+      ).rejects.toMatchObject({ status: 429 });
+    expect(mocks.compare).toHaveBeenCalledTimes(5);
+    mocks.findUnique.mockResolvedValue({
+      id: 'other',
+      role: 'CASHIER',
+      isActive: true,
+      pinHash: 'hash',
+    });
+    mocks.compare.mockResolvedValue(true);
+    await expect(
+      authenticateLogin({ mode: 'pin', userId: 'other', pin: '2222' }, 'b'),
+    ).resolves.toMatchObject({ id: 'other' });
+  });
   it('blocks a sixth user guess even from another IP, including concurrent requests', async () => {
     await Promise.all(
       Array.from({ length: 5 }, () =>
