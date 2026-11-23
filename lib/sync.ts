@@ -3,7 +3,7 @@ import { db } from './db';
 import { HttpError } from './api';
 import { verifyCatalog } from './offline-catalog';
 import { cartTotal, changeDue } from './money';
-import { lockStore, nextOrderCode, orderInclude } from './sales';
+import { lockStore, nextOrderCode, orderInclude, vietnamDay } from './sales';
 import { orderMatchesCheckout } from './order-match';
 import type { SaleOrder } from './sales-types';
 import type { SyncEntry } from './sync-validation';
@@ -170,13 +170,14 @@ export async function syncOrder(
         'Giá trị hoặc giá từng món/topping trên máy chủ khác đơn đã bán. Giữ đơn để chủ quán đối chiếu; không tự ghi đè.',
         409,
       );
-    const numbering = unconfirmed
-      ? {
-          businessDate: existing.businessDate,
-          dailyNumber: existing.dailyNumber,
-          code: existing.code,
-        }
-      : await nextOrderCode(tx, actor.storeId, paidAt);
+    const numbering =
+      unconfirmed && existing.businessDate === vietnamDay(paidAt)
+        ? {
+            businessDate: existing.businessDate,
+            dailyNumber: existing.dailyNumber,
+            code: existing.code,
+          }
+        : await nextOrderCode(tx, actor.storeId, paidAt);
     const data = {
       id: entry.order.id,
       storeId: actor.storeId,
@@ -202,6 +203,7 @@ export async function syncOrder(
           status: 'PAID',
           paidAt,
           requestHash: hash,
+          ...numbering,
           version: { increment: 1 },
         },
       });

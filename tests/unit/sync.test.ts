@@ -222,6 +222,28 @@ describe('offline sync transaction', () => {
       data: expect.objectContaining({ subtotal: 60000, total: 60000 }),
     });
   });
+  it('renumbers a recovered checkout on its payment day and preserves the code on replay', async () => {
+    const input = entry(),
+      existing = recoveredOrder(input);
+    existing.businessDate = vietnamDay(
+      new Date(new Date(input.paidAt).getTime() - 86400000),
+    );
+    existing.code = 'CF' + existing.businessDate.replaceAll('-', '') + '-0001';
+    mocks.orders.set(id, existing);
+    const result = await syncOrder(actor, input);
+    await expect(syncOrder(actor, input)).resolves.toEqual(result);
+    expect(mocks.db.order.update).toHaveBeenCalledWith({
+      where: { id },
+      data: expect.objectContaining({
+        businessDate: vietnamDay(new Date(input.paidAt)),
+        code:
+          'CF' +
+          vietnamDay(new Date(input.paidAt)).replaceAll('-', '') +
+          '-0005',
+      }),
+    });
+    expect(mocks.db.payment.create).toHaveBeenCalledTimes(1);
+  });
   it('rejects offsetting per-line price changes even when the recovered totals match', async () => {
     const input = entry(),
       existing = recoveredOrder(input);

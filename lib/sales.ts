@@ -316,6 +316,11 @@ export async function payOrder(
       payment.method === 'CASH'
         ? changeDue(order.total, payment.received)
         : null;
+    const paidAt = new Date();
+    const numbering =
+      order.businessDate === vietnamDay(paidAt)
+        ? undefined
+        : await nextOrderCode(tx, actor.storeId, paidAt);
     await tx.payment.create({
       data: {
         ...(payment.id ? { id: payment.id } : {}),
@@ -330,7 +335,7 @@ export async function payOrder(
     });
     await tx.order.update({
       where: { id },
-      data: { status: 'PAID', paidAt: new Date(), version: { increment: 1 } },
+      data: { status: 'PAID', paidAt, ...numbering, version: { increment: 1 } },
     });
     await tx.auditLog.create({
       data: {
@@ -343,6 +348,9 @@ export async function payOrder(
           method: payment.method,
           amount: order.total,
           confirmedBy: actor.id,
+          ...(numbering
+            ? { previousCode: order.code, code: numbering.code }
+            : {}),
         },
       },
     });

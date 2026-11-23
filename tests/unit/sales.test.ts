@@ -74,6 +74,25 @@ beforeEach(() => {
   });
 });
 describe('server sales', () => {
+  it('uses the payment business day for receipts held on an earlier day', async () => {
+    mocks.db.order.findFirst.mockResolvedValue({
+      id,
+      storeId: 'store',
+      createdBy: 'user',
+      status: 'OPEN',
+      shiftId: 'shift',
+      total: 70000,
+      version: 1,
+      businessDate: '2000-01-01',
+      code: 'CF20000101-0001',
+    });
+    await payOrder(actor, id, { method: 'CASH', received: 100000 });
+    const data = mocks.db.order.update.mock.calls[0][0].data;
+    expect(data.businessDate).toBe(vietnamDay(data.paidAt));
+    expect(data.code).toBe(
+      'CF' + data.businessDate.replaceAll('-', '') + '-0009',
+    );
+  });
   it('rejects a new order from an inactive category', async () => {
     mocks.db.productVariant.findMany.mockResolvedValueOnce([
       {
