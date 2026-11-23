@@ -95,3 +95,33 @@ export function formatVnd(value: number): string {
   if (!Number.isSafeInteger(value)) throw new RangeError('Invalid VND');
   return new Intl.NumberFormat('vi-VN').format(value) + ' ₫';
 }
+export function startingPrice(prices: readonly number[]): string {
+  if (!prices.length) return 'Chưa có giá';
+  prices.forEach(vnd);
+  return (
+    (new Set(prices).size > 1 ? 'từ ' : '') + formatVnd(Math.min(...prices))
+  );
+}
+export function allocateDiscount(
+  totalSubtotal: number,
+  discount: number,
+  movedSubtotal: number,
+) {
+  vnd(totalSubtotal);
+  vnd(discount);
+  vnd(movedSubtotal);
+  if (discount > totalSubtotal || movedSubtotal > totalSubtotal)
+    throw new RangeError('Invalid allocation');
+  const moved =
+    totalSubtotal === 0
+      ? 0
+      : Number(
+          (BigInt(discount) * BigInt(movedSubtotal) * 2n +
+            BigInt(totalSubtotal)) /
+            (BigInt(totalSubtotal) * 2n),
+        );
+  return { moved, remaining: discount - moved };
+}
+export function sumMoney(values: readonly number[]): number {
+  return values.reduce((sum, value) => vnd(sum + vnd(value)), 0);
+}

@@ -16,6 +16,8 @@ export type MenuTopping = {
 export type SaleOrder = {
   id: string;
   code: string;
+  version: number;
+  tableId: string | null;
   type: 'TAKEAWAY' | 'DINE_IN';
   status: 'OPEN' | 'PAID' | 'CANCELLED';
   subtotal: number;
@@ -30,12 +32,20 @@ export type SaleOrder = {
   table: { name: string; area: string } | null;
   items: {
     id: string;
+    productId: string;
+    variantId: string;
     nameSnapshot: string;
     priceSnapshot: number;
     quantity: number;
     note: string;
     status: 'ACTIVE' | 'VOIDED';
-    toppings: { id: string; nameSnapshot: string; priceSnapshot: number }[];
+    voidReason?: string | null;
+    toppings: {
+      id: string;
+      toppingId: string;
+      nameSnapshot: string;
+      priceSnapshot: number;
+    }[];
   }[];
   payments: {
     id: string;

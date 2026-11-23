@@ -23,6 +23,7 @@ export const checkoutSchema = z
     lines: z
       .array(
         z.object({
+          itemId: z.uuid().optional(),
           variantId: z.uuid(),
           quantity: z.number().int().min(1).max(99),
           toppingIds: z
@@ -41,6 +42,61 @@ export const checkoutSchema = z
     'Vui lòng chọn bàn',
   );
 export const paymentSchema = z.discriminatedUnion('method', [
-  z.object({ method: z.literal('CASH'), received: cashValue }),
-  z.object({ method: z.literal('BANK_TRANSFER'), confirmed: z.literal(true) }),
+  z.object({
+    method: z.literal('CASH'),
+    received: cashValue,
+    version: z.number().int().positive().optional(),
+  }),
+  z.object({
+    method: z.literal('BANK_TRANSFER'),
+    confirmed: z.literal(true),
+    version: z.number().int().positive().optional(),
+  }),
+]);
+export const versionSchema = z.number().int().positive();
+export const editOrderSchema = z.object({
+  version: versionSchema,
+  order: checkoutSchema,
+});
+const authorization = {
+  reason: z.string().trim().min(1, 'Vui lòng nhập lý do').max(300),
+  ownerPin: z.string().regex(/^[0-9]{4,6}$/, 'PIN gồm 4–6 chữ số'),
+};
+export const operationSchema = z.discriminatedUnion('action', [
+  z.object({
+    action: z.literal('VOID'),
+    version: versionSchema,
+    itemId: z.uuid(),
+    ...authorization,
+  }),
+  z.object({
+    action: z.literal('CANCEL'),
+    version: versionSchema,
+    ...authorization,
+  }),
+  z.object({
+    action: z.literal('MOVE'),
+    version: versionSchema,
+    tableId: z.uuid(),
+  }),
+  z.object({
+    action: z.literal('MERGE'),
+    version: versionSchema,
+    sourceId: z.uuid(),
+    sourceVersion: versionSchema,
+  }),
+  z.object({
+    action: z.literal('SPLIT'),
+    version: versionSchema,
+    newId: z.uuid(),
+    items: z
+      .array(
+        z.object({
+          itemId: z.uuid(),
+          quantity: z.number().int().min(1).max(99),
+        }),
+      )
+      .min(1)
+      .max(100),
+  }),
 ]);

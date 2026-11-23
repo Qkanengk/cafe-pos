@@ -65,6 +65,7 @@ beforeEach(() => {
     status: 'OPEN',
     shiftId: 'shift',
     total: 70000,
+    version: 1,
   });
 });
 describe('server sales', () => {

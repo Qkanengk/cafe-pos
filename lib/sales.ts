@@ -74,6 +74,26 @@ export function vietnamDay(date: Date) {
 export async function lockStore(tx: Prisma.TransactionClient, storeId: string) {
   await tx.$queryRaw`SELECT id FROM "Store" WHERE id = ${storeId} FOR UPDATE`;
 }
+export async function nextOrderCode(
+  tx: Prisma.TransactionClient,
+  storeId: string,
+) {
+  const businessDate = vietnamDay(new Date());
+  const sequence = await tx.order.aggregate({
+    where: { storeId, businessDate },
+    _max: { dailyNumber: true },
+  });
+  const dailyNumber = (sequence._max.dailyNumber ?? 0) + 1;
+  return {
+    businessDate,
+    dailyNumber,
+    code:
+      'CF' +
+      businessDate.replaceAll('-', '') +
+      '-' +
+      String(dailyNumber).padStart(4, '0'),
+  };
+}
 type Actor = { id: string; storeId: string };
 async function liveActor(tx: Prisma.TransactionClient, actor: Actor) {
   if (
@@ -111,6 +131,22 @@ export async function prepareOrder(
       where: { storeId: actor.storeId, closedAt: null },
     });
     if (!shift) throw new HttpError('Vui lòng mở ca trước khi bán hàng', 409);
+    if (input.lines.some((line) => line.itemId))
+      throw new HttpError('Món đã lưu phải sửa tại đơn gốc');
+    if (
+      input.type === 'DINE_IN' &&
+      (await tx.order.findFirst({
+        where: {
+          storeId: actor.storeId,
+          tableId: input.tableId,
+          status: 'OPEN',
+        },
+      }))
+    )
+      throw new HttpError(
+        'Bàn đang phục vụ. Vui lòng tải lại và mở đơn của bàn.',
+        409,
+      );
     if (
       input.type === 'DINE_IN' &&
       !(await tx.table.findFirst({
@@ -156,17 +192,10 @@ export async function prepareOrder(
     );
     if (totals.total > 2147483647 || totals.subtotal > 2147483647)
       throw new HttpError('Giá trị đơn vượt giới hạn');
-    const businessDate = vietnamDay(new Date());
-    const sequence = await tx.order.aggregate({
-      where: { storeId: actor.storeId, businessDate },
-      _max: { dailyNumber: true },
-    });
-    const dailyNumber = (sequence._max.dailyNumber ?? 0) + 1;
-    const code =
-      'CF' +
-      businessDate.replaceAll('-', '') +
-      '-' +
-      String(dailyNumber).padStart(4, '0');
+    const { businessDate, dailyNumber, code } = await nextOrderCode(
+      tx,
+      actor.storeId,
+    );
     const order = await tx.order.create({
       data: {
         id: input.id,
@@ -210,6 +239,16 @@ export async function prepareOrder(
           })),
         });
     }
+    await tx.auditLog.create({
+      data: {
+        storeId: actor.storeId,
+        userId: actor.id,
+        entity: 'orders',
+        entityId: order.id,
+        action: 'HOLD',
+        data: { version: 1 },
+      },
+    });
     return tx.order.findUniqueOrThrow({
       where: { id: order.id },
       include: orderInclude,
@@ -230,6 +269,11 @@ export async function payOrder(
     });
     if (!order) throw new HttpError('Không tìm thấy đơn', 404);
     if (order.status === 'PAID') return order;
+    if ((payment.version ?? 1) !== order.version)
+      throw new HttpError(
+        'Đơn đã được thay đổi trên thiết bị khác. Vui lòng tải lại đơn.',
+        409,
+      );
     if (order.status !== 'OPEN')
       throw new HttpError('Đơn không thể thanh toán', 409);
     const shift = await tx.shift.findFirst({

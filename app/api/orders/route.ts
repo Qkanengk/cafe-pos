@@ -15,12 +15,14 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const actor = await apiUser(request);
+    const shift = await db.shift.findFirst({
+      where: { storeId: actor.storeId, closedAt: null },
+    });
     return NextResponse.json(
       await db.order.findMany({
-        where: { storeId: actor.storeId },
+        where: { storeId: actor.storeId, shiftId: shift?.id ?? 'none' },
         include: orderInclude,
         orderBy: { createdAt: 'desc' },
-        take: 100,
       }),
     );
   } catch (error) {

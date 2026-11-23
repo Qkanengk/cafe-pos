@@ -1,5 +1,6 @@
 import { hash } from 'bcryptjs';
 import { db } from '../lib/db';
+import { seedMenu } from './menu';
 
 async function main() {
   const passwordHash = await hash('owner123', 12);
@@ -30,45 +31,26 @@ async function main() {
         { storeId, name: 'Lan', role: 'CASHIER', pinHash: cashierPin },
       ],
     });
-    const menu = [
-      ['Cà phê', 'Cà phê đen', 'Cà phê sữa', 'Bạc xỉu', 'Americano', 'Latte'],
-      ['Trà', 'Trà đào', 'Trà vải', 'Trà chanh', 'Trà sen', 'Trà sữa'],
-      [
-        'Đá xay',
-        'Matcha đá xay',
-        'Chocolate đá xay',
-        'Cà phê đá xay',
-        'Dâu đá xay',
-        'Xoài đá xay',
-      ],
-      [
-        'Bánh',
-        'Croissant',
-        'Tiramisu',
-        'Bánh phô mai',
-        'Brownie',
-        'Bánh chuối',
-      ],
-    ];
-    for (const [sortOrder, [name, ...products]] of menu.entries()) {
+    for (const [sortOrder, { name, products }] of seedMenu.entries()) {
       const category = await tx.category.create({
         data: { storeId, name, sortOrder },
       });
-      for (const [index, name] of products.entries()) {
+      for (const [index, entry] of products.entries()) {
         const product = await tx.product.create({
           data: {
             storeId,
             categoryId: category.id,
-            name,
+            name: entry.name,
             sortOrder: index,
           },
         });
         await tx.productVariant.createMany({
-          data: [
-            { storeId, productId: product.id, name: 'S', price: 25000 },
-            { storeId, productId: product.id, name: 'M', price: 30000 },
-            { storeId, productId: product.id, name: 'L', price: 35000 },
-          ],
+          data: entry.prices.map((price, index) => ({
+            storeId,
+            productId: product.id,
+            name: entry.prices.length === 1 ? 'Phần' : ['S', 'M', 'L'][index],
+            price,
+          })),
         });
       }
     }

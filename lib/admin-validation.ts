@@ -42,7 +42,10 @@ export const productSchema = z.object({
         ),
     ])
     .default(''),
-  prices: z.object({ S: money, M: money, L: money }),
+  prices: z.union([
+    z.object({ S: money, M: money, L: money }),
+    z.object({ Phần: money }),
+  ]),
 });
 export const toppingSchema = z.object({
   name,

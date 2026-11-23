@@ -146,16 +146,16 @@ export async function adminRequest(request: NextRequest, resource: string) {
         const product = id
           ? await tx.product.update({ where: { id, storeId }, data: input })
           : await tx.product.create({ data: { ...input, storeId } });
-        for (const name of ['S', 'M', 'L'] as const)
+        for (const [name, price] of Object.entries(prices))
           await tx.productVariant.upsert({
             where: { productId_name: { productId: product.id, name } },
             create: {
               storeId,
               productId: product.id,
               name,
-              price: prices[name],
+              price,
             },
-            update: { price: prices[name] },
+            update: { price },
           });
         data = await tx.product.findUniqueOrThrow({
           where: { id: product.id },
