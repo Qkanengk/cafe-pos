@@ -43,6 +43,11 @@ export function RefundControl({
           Hoàn {formatVnd(r.amount)} · {r.reason}
         </p>
       ))}
+      {error && (
+        <p role="alert" className="text-red-800">
+          {error}
+        </p>
+      )}
       {refunded < order.total && (
         <details>
           <summary className="cursor-pointer py-3 font-semibold">
@@ -128,11 +133,6 @@ export function RefundControl({
               autoComplete="off"
             />
           </label>
-          {error && (
-            <p role="alert" className="text-red-800">
-              {error}
-            </p>
-          )}
           <Button
             className="mt-3 w-full"
             disabled={

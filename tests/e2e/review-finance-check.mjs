@@ -204,6 +204,68 @@ try {
   console.log(
     'PASS stale refunds: concurrent partial refund rejects the old full amount/version with 409 and no payout; PIN cleared; fresh explicit confirmation succeeds; replay stays idempotent',
   );
+  const fullShift = await api(
+    '/api/shifts',
+    'POST',
+    { openingCash: 100000 },
+    201,
+  );
+  let full = await api('/api/orders', 'POST', {
+    id: randomUUID(),
+    type: 'TAKEAWAY',
+    lines: [{ variantId: variant.id, quantity: 1, toppingIds: [] }],
+  });
+  full = await api('/api/orders/' + full.id + '/pay', 'POST', {
+    id: randomUUID(),
+    method: 'CASH',
+    received: full.total,
+    version: full.version,
+  });
+  await page.goto('/orders?shiftId=' + fullShift.id);
+  await page
+    .getByRole('row')
+    .filter({ hasText: full.code })
+    .getByRole('button', { name: /Chi tiết đơn/ })
+    .click();
+  await page.getByText('Hoàn tiền có PIN chủ quán', { exact: true }).click();
+  await page
+    .getByLabel('Lý do hoàn', { exact: true })
+    .fill('Yêu cầu cũ chưa ghi nhận');
+  await page.getByLabel('PIN chủ quán', { exact: true }).fill('1111');
+  await api('/api/orders/' + full.id + '/refunds', 'POST', {
+    id: randomUUID(),
+    version: full.version,
+    amount: full.total,
+    method: 'BANK_TRANSFER',
+    ownerPin: '1111',
+    reason: 'Đã hoàn hết ở máy khác',
+  });
+  const fullRejected = page.waitForResponse(
+    (r) => r.url().endsWith('/refunds') && r.request().method() === 'POST',
+  );
+  await page.getByRole('button', { name: /^Xác nhận đã hoàn / }).click();
+  assert.equal((await fullRejected).status(), 409);
+  await expect(
+    page.getByText('Hoàn tiền có PIN chủ quán', { exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole('alert').filter({ hasText: 'Chưa ghi khoản hoàn này' }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: /^Xác nhận đã hoàn / }),
+  ).toHaveCount(0);
+  full = await api('/api/orders/' + full.id);
+  assert.equal(full.refunds.length, 1);
+  assert.equal(full.payments.filter((p) => p.amount < 0).length, 1);
+  await page.screenshot({ path: shots + '/fully-refunded-conflict.png' });
+  await api('/api/shifts', 'PUT', {
+    id: fullShift.id,
+    countedCash: 100000 + full.total,
+    note: 'Fully refunded conflict regression',
+  });
+  console.log(
+    'PASS fully refunded conflict: 409 notice remains visible on the bill after the form disappears; the rejected attempt creates no refund or payout',
+  );
 } finally {
   await browser.close();
 }
