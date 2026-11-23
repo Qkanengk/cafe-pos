@@ -8,7 +8,7 @@ export async function requireUser(role?: 'OWNER' | 'CASHIER') {
   );
   if (!session) redirect('/login');
   const user = await db.user.findFirst({
-    where: { id: session.sub, storeId: session.storeId },
+    where: { id: session.sub, storeId: session.storeId, isActive: true },
   });
   if (!user) redirect('/login');
   if (role && user.role !== role) redirect('/pos');

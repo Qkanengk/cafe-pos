@@ -37,6 +37,7 @@ export async function POST(request: NextRequest) {
   });
   const valid =
     user &&
+    user.isActive &&
     (data.mode === 'pin'
       ? await compare(data.pin, user.pinHash)
       : user.role === 'OWNER' &&

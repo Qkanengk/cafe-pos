@@ -69,6 +69,7 @@ model User {
   email        String?    @unique
   passwordHash String?
   pinHash      String
+  isActive     Boolean    @default(true)
   openedShifts Shift[]    @relation("OpenedBy")
   closedShifts Shift[]    @relation("ClosedBy")
   orders       Order[]
