@@ -173,9 +173,45 @@ describe('server sales', () => {
     expect(mocks.db.auditLog.create).toHaveBeenCalled();
   });
   it('does not take a second payment on retry, even after shift closure', async () => {
-    mocks.db.order.findFirst.mockResolvedValue({ id, status: 'PAID' });
+    const paymentId = '77777777-7777-4777-8777-777777777777';
+    mocks.db.order.findFirst.mockResolvedValue({
+      id,
+      status: 'PAID',
+      payments: [
+        {
+          id: paymentId,
+          method: 'CASH',
+          received: 100000,
+          confirmedBy: actor.id,
+        },
+      ],
+    });
     mocks.db.shift.findFirst.mockResolvedValue(null);
-    await payOrder(actor, id, { method: 'CASH', received: 100000 });
+    await payOrder(actor, id, {
+      id: paymentId,
+      method: 'CASH',
+      received: 100000,
+    });
+    expect(mocks.db.payment.create).not.toHaveBeenCalled();
+  });
+  it('rejects a competing payment and exposes the existing paid result, not a false success', async () => {
+    const paid = {
+      id,
+      status: 'PAID',
+      payments: [
+        { id: 'first', method: 'CASH', received: 30000, confirmedBy: actor.id },
+      ],
+    };
+    mocks.db.order.findFirst.mockResolvedValue(paid);
+    for (const payment of [
+      { id: 'second', method: 'CASH' as const, received: 50000 },
+      { id: 'first', method: 'CASH' as const, received: 50000 },
+      { method: 'CASH' as const, received: 30000 },
+    ])
+      await expect(payOrder(actor, id, payment)).rejects.toMatchObject({
+        status: 409,
+        details: { order: paid },
+      });
     expect(mocks.db.payment.create).not.toHaveBeenCalled();
   });
   it('rejects short tender, closed shifts and missing orders without payment', async () => {

@@ -106,6 +106,17 @@ beforeEach(() => {
   mem.db.snapshots.rows.set('active', { id: 'active', data: snapshot() });
 });
 describe('local sale snapshots', () => {
+  it('replays only the same local payment UUID and rejects another window’s tender', async () => {
+    const order = await prepareLocal(input());
+    const paymentId = crypto.randomUUID();
+    const payment = { id: paymentId, method: 'CASH' as const, received: 30000 };
+    const paid = await payLocal(order, payment);
+    expect(await payLocal(order, payment)).toEqual(paid);
+    await expect(
+      payLocal(order, { ...payment, id: crypto.randomUUID(), received: 50000 }),
+    ).rejects.toThrow('đã được thanh toán');
+    expect(mem.db.outbox.rows.size).toBe(1);
+  });
   it('lists and reopens only this cashier’s held drafts, including an empty device', async () => {
     expect(await localDrafts()).toEqual([]);
     const order = await prepareLocal(input());

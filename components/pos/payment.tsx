@@ -9,6 +9,8 @@ import { cashSuggestions, changeDue, formatVnd } from '@/lib/money';
 import { renderVietQR } from '@/lib/vietqr';
 import { payLocal } from '@/lib/offline';
 import { posFetch } from '@/lib/pos-fetch';
+import { PaymentConflictError } from '@/lib/payment-conflict';
+import { PrintLinks } from './print-links';
 import type { SaleOrder, BankDetails } from '@/lib/sales-types';
 export function PaymentDialog({
   order,
@@ -28,6 +30,7 @@ export function PaymentDialog({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [paymentId] = useState(() => crypto.randomUUID());
+  const [existingPaid, setExistingPaid] = useState<SaleOrder | null>(null);
   useEffect(() => {
     if (method !== 'BANK_TRANSFER') return;
     let active = true;
@@ -90,9 +93,12 @@ export function PaymentDialog({
         ),
       });
       const result = await response.json();
+      if (response.status === 409 && result.details?.order?.status === 'PAID')
+        throw new PaymentConflictError(result.details.order);
       if (!response.ok) throw new Error(result.error);
       onPaid(result);
     } catch (e) {
+      if (e instanceof PaymentConflictError) setExistingPaid(e.order);
       setError(
         e instanceof Error
           ? e.message
@@ -102,6 +108,33 @@ export function PaymentDialog({
       setBusy(false);
     }
   }
+  if (existingPaid)
+    return (
+      <Dialog title="Đơn đã được thanh toán" onClose={onClose}>
+        <div className="space-y-4">
+          <p role="alert">
+            Đơn đã được thu tiền trước đó. Lần này không nhận thêm tiền, không
+            trả tiền thừa dự kiến.
+          </p>
+          <strong>
+            {existingPaid.code} · {formatVnd(existingPaid.total)}
+          </strong>
+          {existingPaid.payments.map((p) => (
+            <p key={p.id}>
+              {p.method === 'CASH' ? 'Tiền mặt' : 'Chuyển khoản'} · Đã nhận{' '}
+              {formatVnd(p.received ?? p.amount)} · Tiền thừa đã ghi{' '}
+              {formatVnd(p.change ?? 0)}
+            </p>
+          ))}
+          {!existingPaid.code.startsWith('TAM-') && (
+            <PrintLinks id={existingPaid.id} />
+          )}
+          <a className="block underline" href="/pos">
+            Bắt đầu đơn mới
+          </a>
+        </div>
+      </Dialog>
+    );
   return (
     <Dialog
       title={'Thanh toán ' + order.code}

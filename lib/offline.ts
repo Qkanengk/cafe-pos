@@ -1,6 +1,7 @@
 'use client';
 import Dexie, { type EntityTable } from 'dexie';
 import { posFetch } from './pos-fetch';
+import { PaymentConflictError } from './payment-conflict';
 import { cartTotal, changeDue } from './money';
 import type { OfflineSnapshot, LocalDraft } from './offline-types';
 import type { SyncEntry } from './sync-validation';
@@ -137,6 +138,18 @@ export async function payLocal(
   payment: z.infer<typeof paymentSchema>,
 ) {
   const snapshot = await cachedSnapshot();
+  const existing = await local.outbox.get(order.id);
+  if (existing && existing.userId === snapshot.user.id) {
+    if (
+      payment.id === existing.entry.paymentId &&
+      payment.method === existing.entry.payment.method &&
+      (payment.method !== 'CASH' ||
+        (existing.entry.payment.method === 'CASH' &&
+          payment.received === existing.entry.payment.received))
+    )
+      return existing.order;
+    throw new PaymentConflictError(existing.order);
+  }
   const draft = await local.drafts.get(order.id);
   if (!draft || draft.userId !== snapshot.user.id || !snapshot.shift)
     throw new Error('Không tìm thấy đơn/ca ngoại tuyến của nhân viên này');
@@ -144,8 +157,6 @@ export async function payLocal(
     throw new Error(
       'Đơn cũ thiếu bảng giá đã lưu. Kết nối và kiểm tra lại đơn trước khi thanh toán.',
     );
-  const existing = await local.outbox.get(order.id);
-  if (existing) return existing.order;
   const id = payment.id ?? crypto.randomUUID(),
     paidAt = new Date().toISOString();
   const received = payment.method === 'CASH' ? payment.received : null;
@@ -176,17 +187,35 @@ export async function payLocal(
     catalogToken: draft.catalogToken,
     payment,
   };
-  await local.transaction('rw', local.outbox, local.drafts, async () => {
-    await local.outbox.add({
-      id: order.id,
-      userId: snapshot.user.id,
-      entry,
-      order: paid,
-    });
-    await local.drafts.delete(order.id);
-  });
+  const saved = await local.transaction(
+    'rw',
+    local.outbox,
+    local.drafts,
+    async () => {
+      const concurrent = await local.outbox.get(order.id);
+      if (concurrent) {
+        if (
+          concurrent.entry.paymentId === id &&
+          concurrent.entry.payment.method === payment.method &&
+          (payment.method !== 'CASH' ||
+            (concurrent.entry.payment.method === 'CASH' &&
+              concurrent.entry.payment.received === payment.received))
+        )
+          return concurrent.order;
+        throw new PaymentConflictError(concurrent.order);
+      }
+      await local.outbox.add({
+        id: order.id,
+        userId: snapshot.user.id,
+        entry,
+        order: paid,
+      });
+      await local.drafts.delete(order.id);
+      return paid;
+    },
+  );
   offlineChanged();
-  return paid;
+  return saved;
 }
 export async function localDraft(id: string) {
   const snapshot = await cachedSnapshot();

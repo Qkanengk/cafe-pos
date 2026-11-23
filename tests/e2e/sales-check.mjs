@@ -279,6 +279,7 @@ try {
   assert.equal(paid.payments[0].confirmedBy, lan.id);
   assert.equal(paid.payments[0].change, tender - total);
   const again = await api(cashier, '/api/orders/' + order.id + '/pay', 'POST', {
+    id: paid.payments[0].id,
     method: 'CASH',
     received: tender,
   });

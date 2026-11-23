@@ -270,7 +270,22 @@ export async function payOrder(
       include: orderInclude,
     });
     if (!order) throw new HttpError('Không tìm thấy đơn', 404);
-    if (order.status === 'PAID') return order;
+    if (order.status === 'PAID') {
+      const prior = order.payments.find((p) => p.id === payment.id);
+      if (
+        payment.id &&
+        prior &&
+        prior.confirmedBy === actor.id &&
+        prior.method === payment.method &&
+        prior.received === (payment.method === 'CASH' ? payment.received : null)
+      )
+        return order;
+      throw new HttpError(
+        'Đơn đã được thanh toán. Không nhận thêm tiền hoặc trả tiền thừa dự kiến; hãy kiểm tra hóa đơn đã thu.',
+        409,
+        { order },
+      );
+    }
     if ((payment.version ?? 1) !== order.version)
       throw new HttpError(
         'Đơn đã được thay đổi trên thiết bị khác. Vui lòng tải lại đơn.',

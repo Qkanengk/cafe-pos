@@ -8,6 +8,7 @@ export class HttpError extends Error {
   constructor(
     message: string,
     public status = 400,
+    public details?: { order: unknown },
   ) {
     super(message);
   }
@@ -26,7 +27,10 @@ export async function apiUser(request: NextRequest) {
 export function apiError(error: unknown) {
   if (error instanceof HttpError)
     return NextResponse.json(
-      { error: error.message },
+      {
+        error: error.message,
+        ...(error.details ? { details: error.details } : {}),
+      },
       { status: error.status },
     );
   if (error instanceof ZodError)
