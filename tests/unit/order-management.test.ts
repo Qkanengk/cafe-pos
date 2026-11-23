@@ -9,12 +9,14 @@ const mocks = vi.hoisted(() => {
     create: vi.fn(),
     createMany: vi.fn(),
     aggregate: vi.fn(),
+    upsert: vi.fn(),
     update: vi.fn(),
     updateMany: vi.fn(),
   });
   return {
     db: {
       order: model(),
+      orderSequence: model(),
       orderItem: model(),
       orderItemTopping: model(),
       shift: model(),
@@ -110,6 +112,7 @@ beforeEach(() => {
   mocks.db.order.findUnique.mockResolvedValue(null);
   mocks.db.order.findUniqueOrThrow.mockImplementation(async () => state);
   mocks.db.order.aggregate.mockResolvedValue({ _max: { dailyNumber: 1 } });
+  mocks.db.orderSequence.upsert.mockResolvedValue({ lastNumber: 2 });
   mocks.db.order.create.mockImplementation(async ({ data }) => ({
     id: data.id,
   }));

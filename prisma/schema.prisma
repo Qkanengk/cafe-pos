@@ -58,6 +58,16 @@ model Store {
   itemToppings    OrderItemTopping[]
   payments        Payment[]
   auditLogs       AuditLog[]
+  orderSequences  OrderSequence[]
+}
+
+model OrderSequence {
+  storeId      String
+  store        Store  @relation(fields: [storeId], references: [id])
+  businessDate String
+  lastNumber   Int
+
+  @@id([storeId, businessDate])
 }
 
 model User {
@@ -131,7 +141,7 @@ model Topping {
   price       Int
   isAvailable Boolean            @default(true)
   items       OrderItemTopping[]
-  products    Product[]           @relation("ProductToppings")
+  products    Product[]          @relation("ProductToppings")
 
   @@unique([id, storeId])
 }

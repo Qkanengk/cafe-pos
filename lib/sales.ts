@@ -81,11 +81,12 @@ export async function nextOrderCode(
   date = new Date(),
 ) {
   const businessDate = vietnamDay(date);
-  const sequence = await tx.order.aggregate({
-    where: { storeId, businessDate },
-    _max: { dailyNumber: true },
+  const sequence = await tx.orderSequence.upsert({
+    where: { storeId_businessDate: { storeId, businessDate } },
+    create: { storeId, businessDate, lastNumber: 1 },
+    update: { lastNumber: { increment: 1 } },
   });
-  const dailyNumber = (sequence._max.dailyNumber ?? 0) + 1;
+  const dailyNumber = sequence.lastNumber;
   return {
     businessDate,
     dailyNumber,

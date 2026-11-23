@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => {
     create: vi.fn(),
     createMany: vi.fn(),
     aggregate: vi.fn(),
+    upsert: vi.fn(),
     update: vi.fn(),
     deleteMany: vi.fn(),
   });
@@ -15,6 +16,7 @@ const mocks = vi.hoisted(() => {
     orders: new Map<string, Record<string, unknown>>(),
     db: {
       order: model(),
+      orderSequence: model(),
       payment: model(),
       user: model(),
       shift: model(),
@@ -123,6 +125,7 @@ beforeEach(() => {
     async ({ where }) => payments.get(where.id) ?? null,
   );
   mocks.db.order.aggregate.mockResolvedValue({ _max: { dailyNumber: 4 } });
+  mocks.db.orderSequence.upsert.mockResolvedValue({ lastNumber: 5 });
   mocks.db.order.create.mockImplementation(async ({ data }) => {
     const order = { ...data, payments: [] };
     orders.set(data.id, order);

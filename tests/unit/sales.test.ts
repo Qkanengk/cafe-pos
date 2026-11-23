@@ -8,10 +8,12 @@ const mocks = vi.hoisted(() => {
     create: vi.fn(),
     createMany: vi.fn(),
     aggregate: vi.fn(),
+    upsert: vi.fn(),
     update: vi.fn(),
   });
   const db = {
     order: model(),
+    orderSequence: model(),
     user: model(),
     shift: model(),
     table: model(),
@@ -27,7 +29,12 @@ const mocks = vi.hoisted(() => {
   return { db };
 });
 vi.mock('../../lib/db', () => ({ db: mocks.db }));
-import { prepareOrder, payOrder, vietnamDay } from '../../lib/sales';
+import {
+  prepareOrder,
+  payOrder,
+  vietnamDay,
+  nextOrderCode,
+} from '../../lib/sales';
 import { checkoutSchema } from '../../lib/sales-validation';
 const actor = { id: 'user', storeId: 'store' };
 const id = '7ff9e456-8548-4f88-9c18-1d2b655de2ce';
@@ -43,6 +50,7 @@ beforeEach(() => {
   mocks.db.shift.findFirst.mockResolvedValue({ id: 'shift' });
   mocks.db.order.findUnique.mockResolvedValue(null);
   mocks.db.order.aggregate.mockResolvedValue({ _max: { dailyNumber: 8 } });
+  mocks.db.orderSequence.upsert.mockResolvedValue({ lastNumber: 9 });
   mocks.db.order.create.mockImplementation(async ({ data }) => data);
   mocks.db.orderItem.create.mockResolvedValue({ id: 'item' });
   mocks.db.productVariant.findMany.mockResolvedValue([
@@ -74,6 +82,28 @@ beforeEach(() => {
   });
 });
 describe('server sales', () => {
+  it('never reuses a previous-day allocation after its highest held bill moves to today', async () => {
+    const counters = new Map<string, number>();
+    mocks.db.orderSequence.upsert.mockImplementation(
+      async ({ where, create }) => {
+        const key = JSON.stringify(where);
+        const lastNumber = (counters.get(key) ?? create.lastNumber - 1) + 1;
+        counters.set(key, lastNumber);
+        return { lastNumber };
+      },
+    );
+    mocks.db.order.aggregate.mockResolvedValue({ _max: { dailyNumber: 0 } });
+    const oldDate = new Date('2026-11-22T06:00:00Z'),
+      today = new Date('2026-11-23T06:00:00Z');
+    const tx = mocks.db as unknown as Parameters<typeof nextOrderCode>[0];
+    const printed = await nextOrderCode(tx, actor.storeId, oldDate);
+    const paid = await nextOrderCode(tx, actor.storeId, today);
+    const lateSync = await nextOrderCode(tx, actor.storeId, oldDate);
+    expect(printed.code).toBe('CF20261122-0001');
+    expect(paid.code).toBe('CF20261123-0001');
+    expect(lateSync.code).toBe('CF20261122-0002');
+    expect(mocks.db.order.aggregate).not.toHaveBeenCalled();
+  });
   it('uses the payment business day for receipts held on an earlier day', async () => {
     mocks.db.order.findFirst.mockResolvedValue({
       id,
