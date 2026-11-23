@@ -1,0 +1,251 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  OWNER
+  CASHIER
+}
+
+enum OrderType {
+  DINE_IN
+  TAKEAWAY
+}
+
+enum OrderStatus {
+  OPEN
+  PAID
+  CANCELLED
+}
+
+enum ItemStatus {
+  ACTIVE
+  VOIDED
+}
+
+enum DiscountType {
+  PERCENT
+  AMOUNT
+}
+
+enum PaymentMethod {
+  CASH
+  BANK_TRANSFER
+}
+
+model Store {
+  id              String             @id @default(uuid())
+  name            String
+  address         String             @default("")
+  bankBin         String
+  bankAccount     String
+  bankAccountName String
+  receiptFooter   String             @default("Cảm ơn quý khách!")
+  receiptWidth    Int                @default(80)
+  users           User[]
+  categories      Category[]
+  products        Product[]
+  variants        ProductVariant[]
+  toppings        Topping[]
+  tables          Table[]
+  shifts          Shift[]
+  orders          Order[]
+  items           OrderItem[]
+  itemToppings    OrderItemTopping[]
+  payments        Payment[]
+  auditLogs       AuditLog[]
+}
+
+model User {
+  id           String     @id @default(uuid())
+  storeId      String
+  store        Store      @relation(fields: [storeId], references: [id])
+  name         String
+  role         Role
+  email        String?    @unique
+  passwordHash String?
+  pinHash      String
+  openedShifts Shift[]    @relation("OpenedBy")
+  closedShifts Shift[]    @relation("ClosedBy")
+  orders       Order[]
+  auditLogs    AuditLog[]
+
+  @@unique([id, storeId])
+}
+
+model Category {
+  id        String    @id @default(uuid())
+  storeId   String
+  store     Store     @relation(fields: [storeId], references: [id])
+  name      String
+  sortOrder Int       @default(0)
+  products  Product[]
+
+  @@unique([id, storeId])
+}
+
+model Product {
+  id          String           @id @default(uuid())
+  storeId     String
+  store       Store            @relation(fields: [storeId], references: [id])
+  categoryId  String
+  category    Category         @relation(fields: [categoryId, storeId], references: [id, storeId])
+  name        String
+  imageUrl    String?
+  isAvailable Boolean          @default(true)
+  sortOrder   Int              @default(0)
+  variants    ProductVariant[]
+  items       OrderItem[]
+
+  @@unique([id, storeId])
+}
+
+model ProductVariant {
+  id        String      @id @default(uuid())
+  storeId   String
+  store     Store       @relation(fields: [storeId], references: [id])
+  productId String
+  product   Product     @relation(fields: [productId, storeId], references: [id, storeId])
+  name      String
+  price     Int
+  items     OrderItem[]
+
+  @@unique([productId, name])
+  @@unique([id, productId, storeId])
+}
+
+model Topping {
+  id          String             @id @default(uuid())
+  storeId     String
+  store       Store              @relation(fields: [storeId], references: [id])
+  name        String
+  price       Int
+  isAvailable Boolean            @default(true)
+  items       OrderItemTopping[]
+
+  @@unique([id, storeId])
+}
+
+model Table {
+  id      String  @id @default(uuid())
+  storeId String
+  store   Store   @relation(fields: [storeId], references: [id])
+  name    String
+  area    String
+  orders  Order[]
+
+  @@unique([id, storeId])
+}
+
+model Shift {
+  id          String    @id @default(uuid())
+  storeId     String
+  store       Store     @relation(fields: [storeId], references: [id])
+  openedBy    String
+  opener      User      @relation("OpenedBy", fields: [openedBy, storeId], references: [id, storeId])
+  openedAt    DateTime  @default(now())
+  openingCash Int
+  closedBy    String?
+  closer      User?     @relation("ClosedBy", fields: [closedBy, storeId], references: [id, storeId])
+  closedAt    DateTime?
+  countedCash Int?
+  note        String?
+  orders      Order[]
+
+  @@unique([id, storeId])
+}
+
+model Order {
+  id            String        @id @default(uuid())
+  storeId       String
+  store         Store         @relation(fields: [storeId], references: [id])
+  shiftId       String
+  shift         Shift         @relation(fields: [shiftId, storeId], references: [id, storeId])
+  tableId       String?
+  table         Table?        @relation(fields: [tableId, storeId], references: [id, storeId])
+  type          OrderType
+  status        OrderStatus   @default(OPEN)
+  subtotal      Int           @default(0)
+  discountType  DiscountType?
+  discountValue Int           @default(0)
+  total         Int           @default(0)
+  createdBy     String
+  creator       User          @relation(fields: [createdBy, storeId], references: [id, storeId])
+  createdAt     DateTime      @default(now())
+  paidAt        DateTime?
+  code          String
+  version       Int           @default(1)
+  note          String?
+  items         OrderItem[]
+  payments      Payment[]
+
+  @@unique([id, storeId])
+  @@index([storeId, createdAt])
+}
+
+model OrderItem {
+  id            String             @id @default(uuid())
+  storeId       String
+  store         Store              @relation(fields: [storeId], references: [id])
+  orderId       String
+  order         Order              @relation(fields: [orderId, storeId], references: [id, storeId])
+  productId     String
+  product       Product            @relation(fields: [productId, storeId], references: [id, storeId])
+  variantId     String
+  variant       ProductVariant     @relation(fields: [variantId, productId, storeId], references: [id, productId, storeId])
+  nameSnapshot  String
+  priceSnapshot Int
+  quantity      Int
+  note          String             @default("")
+  status        ItemStatus         @default(ACTIVE)
+  voidReason    String?
+  toppings      OrderItemTopping[]
+
+  @@unique([id, storeId])
+}
+
+model OrderItemTopping {
+  id            String    @id @default(uuid())
+  storeId       String
+  store         Store     @relation(fields: [storeId], references: [id])
+  orderItemId   String
+  orderItem     OrderItem @relation(fields: [orderItemId, storeId], references: [id, storeId])
+  toppingId     String
+  topping       Topping   @relation(fields: [toppingId, storeId], references: [id, storeId])
+  nameSnapshot  String
+  priceSnapshot Int
+}
+
+model Payment {
+  id        String        @id @default(uuid())
+  storeId   String
+  store     Store         @relation(fields: [storeId], references: [id])
+  orderId   String
+  order     Order         @relation(fields: [orderId, storeId], references: [id, storeId])
+  method    PaymentMethod
+  amount    Int
+  received  Int?
+  change    Int?
+  createdAt DateTime      @default(now())
+
+  @@index([storeId, createdAt])
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  storeId   String
+  store     Store    @relation(fields: [storeId], references: [id])
+  userId    String
+  user      User     @relation(fields: [userId, storeId], references: [id, storeId])
+  action    String
+  entity    String
+  entityId  String
+  data      Json
+  createdAt DateTime @default(now())
+
+  @@index([storeId, createdAt])
+}

@@ -1,0 +1,50 @@
+{
+  "name": "cafe-pos",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev --hostname 0.0.0.0",
+    "build": "prisma generate && next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "test": "vitest run",
+    "db:seed": "tsx prisma/seed.ts"
+  },
+  "dependencies": {
+    "@prisma/adapter-pg": "7.10.1",
+    "@prisma/client": "7.10.1",
+    "bcryptjs": "3.0.3",
+    "clsx": "latest",
+    "dexie": "4.4.7",
+    "jose": "6.2.18",
+    "next": "16.4.6",
+    "pg": "latest",
+    "qrcode": "1.5.4",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "tailwind-merge": "latest",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.65.1",
+    "@tailwindcss/postcss": "4.3.5",
+    "@types/node": "latest",
+    "@types/pg": "latest",
+    "@types/qrcode": "latest",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "eslint": "9.39.5",
+    "eslint-config-next": "16.4.6",
+    "prettier": "3.10.1",
+    "prisma": "7.10.1",
+    "tailwindcss": "4.3.5",
+    "tsx": "latest",
+    "typescript": "6.0.3",
+    "vitest": "5.1.1"
+  },
+  "overrides": {
+    "effect": "3.22.5"
+  }
+}
