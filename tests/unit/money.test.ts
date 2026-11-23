@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   parseVndInput,
+  vndInputError,
   parsePercentInput,
   parseDiscountInput,
   lineTotal,
@@ -14,6 +15,11 @@ import {
 } from '../../lib/money';
 import { editVndInput } from '../../lib/money-edit';
 describe('Vietnamese VND input', () => {
+  it('explains negative, oversized and fractional currency separately', () => {
+    expect(vndInputError('-1')).toContain('không được âm');
+    expect(vndInputError('9999999999999')).toContain('quá lớn');
+    expect(vndInputError('1.5')).toContain('thập phân');
+  });
   it('never deletes digits when cutting or deleting a selection of grouping separators', () => {
     for (const inputType of [
       'deleteByCut',

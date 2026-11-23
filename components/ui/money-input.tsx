@@ -8,7 +8,7 @@ import {
   type InputHTMLAttributes,
 } from 'react';
 import { Input } from './input';
-import { parseVndInput, parsePercentInput } from '@/lib/money';
+import { parseVndInput, parsePercentInput, vndInputError } from '@/lib/money';
 import { editVndInput } from '@/lib/money-edit';
 type Props = Omit<
   InputHTMLAttributes<HTMLInputElement>,
@@ -45,7 +45,7 @@ export function MoneyInput({
   const amount = grouped ? parseVndInput(value) : parsePercentInput(value);
   const invalid = String(value) !== '' && !Number.isFinite(amount);
   const message = grouped
-    ? 'Nhập số tiền nguyên (ví dụ 50.000, 50,000 hoặc 50000); không nhập số thập phân.'
+    ? vndInputError(value)
     : 'Nhập phần trăm nguyên từ 0 đến 100; không dùng dấu chấm hoặc phẩy.';
   const display =
     String(value) !== '' && Number.isFinite(amount) && grouped

@@ -17,6 +17,17 @@ export function parseVndInput(value: string | number): number {
     ? amount
     : NaN;
 }
+export function vndInputError(value: string | number) {
+  const text = String(value).trim();
+  if (text.startsWith('-'))
+    return 'Số tiền không được âm. Giá bán phải lớn hơn 0 ₫.';
+  if (
+    /^(?:\d+|\d{1,3}(?:\.\d{3})+|\d{1,3}(?:,\d{3})+)$/.test(text) &&
+    Number(text.replace(/[.,]/g, '')) > 2147483647
+  )
+    return 'Số tiền quá lớn. Tối đa 2.147.483.647 ₫.';
+  return 'Nhập số tiền nguyên (ví dụ 50.000, 50,000 hoặc 50000); không nhập số thập phân.';
+}
 export function vnd(value: number): number {
   if (!Number.isSafeInteger(value) || value < 0)
     throw new RangeError('VND must be a non-negative safe integer');
