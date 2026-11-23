@@ -41,7 +41,6 @@ import {
   lineTotal,
   formatVnd,
   startingPrice,
-  parseVndInput,
   parseDiscountInput,
   type Discount,
 } from '@/lib/money';
