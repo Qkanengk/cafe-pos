@@ -8,6 +8,20 @@ import {
 } from '../../lib/admin-validation';
 const categoryId = '7ff9e456-8548-4f88-9c18-1d2b655de2ce';
 describe('shared admin validation', () => {
+  it('accepts a single Phần price and rejects missing or invalid portion prices', () => {
+    const base = {
+      name: 'Bánh',
+      categoryId,
+      sortOrder: 0,
+      imageUrl: '',
+      isAvailable: true,
+    };
+    expect(
+      productSchema.parse({ ...base, prices: { Phần: 29000 } }).prices,
+    ).toEqual({ Phần: 29000 });
+    for (const prices of [{}, { Phần: -1 }, { Phần: 1.5 }])
+      expect(productSchema.safeParse({ ...base, prices }).success).toBe(false);
+  });
   it('accepts category names and integer display order', () => {
     expect(categorySchema.parse({ name: '  Cà phê  ', sortOrder: 1 })).toEqual({
       name: 'Cà phê',

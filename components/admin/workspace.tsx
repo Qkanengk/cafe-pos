@@ -51,6 +51,7 @@ function initialValues(resource: Resource, row?: Row): Record<string, unknown> {
     S: 25000,
     M: 30000,
     L: 35000,
+    Phần: 25000,
     portion: ((row?.variants ?? []) as { name: string }[]).some(
       (v) => v.name === 'Phần',
     ),
@@ -117,6 +118,11 @@ export function AdminWorkspace({
               hint: 'Liên kết ảnh http/https. Để trống nếu chưa có ảnh.',
             },
             { key: 'sortOrder', label: 'Thứ tự hiển thị', type: 'number' },
+            {
+              key: 'portion',
+              label: 'Một phần (không chia size S/M/L)',
+              type: 'checkbox',
+            },
             ...(values.portion ? ['Phần'] : ['S', 'M', 'L']).map((key) => ({
               key,
               label: 'Giá size ' + key + ' (₫)',
