@@ -97,10 +97,18 @@ try {
   assert.equal(await editingPrice.inputValue(), '50.000');
   await editingPrice.focus();
   await editingPrice.press('End');
+  await editingPrice.press('0');
+  assert.equal(await editingPrice.inputValue(), '500.000');
+  assert.equal(await editingPrice.getAttribute('aria-invalid'), 'false');
+  await editingPrice.press('Backspace');
+  assert.equal(await editingPrice.inputValue(), '50.000');
   await editingPrice.press('Backspace');
   assert.equal(await editingPrice.getAttribute('aria-invalid'), 'false');
   await editingPrice.blur();
   assert.equal(await editingPrice.inputValue(), '5.000');
+  console.log(
+    'PASS owner VND editing: append 0 changes 50.000 to 500.000 immediately; backspace restores 50.000 then 5.000 without blur',
+  );
   for (const [size, price] of [
     ['S', '28000'],
     ['M', '33000'],

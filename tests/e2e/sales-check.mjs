@@ -255,6 +255,15 @@ try {
     .getByRole('button', { name: 'Giảm số lượng', exact: true })
     .click();
   await page.getByRole('button', { name: /Lưu món/ }).click();
+  await page.getByLabel('Giảm giá', { exact: true }).fill('1.5');
+  await expect(page.getByLabel('Giảm giá', { exact: true })).toHaveValue('1.5');
+  await expect(page.getByLabel('Giảm giá', { exact: true })).toHaveAttribute(
+    'aria-invalid',
+    'true',
+  );
+  await expect(
+    page.getByRole('button', { name: 'Thanh toán', exact: true }),
+  ).toBeDisabled();
   await page.getByLabel('Giảm giá', { exact: true }).fill('10');
   await expect(page.getByTestId('cart-total')).toHaveText(
     fmt(total - Math.round(total * 0.1)),
@@ -316,11 +325,25 @@ try {
   const tenderInput = payDialog.getByLabel('Tiền khách đưa', { exact: true });
   await tenderInput.fill('50.000');
   await tenderInput.press('End');
+  await tenderInput.press('0');
+  await expect(tenderInput).toHaveValue('500.000');
+  await tenderInput.press('Backspace');
+  await expect(tenderInput).toHaveValue('50.000');
+  await tenderInput.press('Home');
+  await tenderInput.press('ArrowRight');
+  await tenderInput.press('1');
+  await expect(tenderInput).toHaveValue('510.000');
+  assert.equal(await tenderInput.evaluate((input) => input.selectionStart), 2);
+  await tenderInput.press('Backspace');
+  await expect(tenderInput).toHaveValue('50.000');
+  assert.equal(await tenderInput.evaluate((input) => input.selectionStart), 1);
+  await tenderInput.press('End');
   await tenderInput.press('Backspace');
   await tenderInput.press('Backspace');
   await tenderInput.blur();
   await expect(tenderInput).toHaveValue('500');
   await tenderInput.fill('50,000.00');
+  await expect(tenderInput).toHaveValue('500');
   await expect(tenderInput).toHaveAttribute('aria-invalid', 'true');
   await expect(payDialog.getByRole('alert')).toContainText(
     'không nhập số thập phân',

@@ -2,15 +2,14 @@
 import {
   useState,
   useId,
+  useLayoutEffect,
+  useRef,
   useSyncExternalStore,
   type InputHTMLAttributes,
 } from 'react';
 import { Input } from './input';
-import {
-  parseVndInput,
-  parsePercentInput,
-  normalizeVndEditing,
-} from '@/lib/money';
+import { parseVndInput, parsePercentInput } from '@/lib/money';
+import { editVndInput } from '@/lib/money-edit';
 type Props = Omit<
   InputHTMLAttributes<HTMLInputElement>,
   'value' | 'onChange' | 'type'
@@ -31,10 +30,16 @@ export function MoneyInput({
     () => true,
     () => false,
   );
-  const [editing, setEditing] = useState<{
-    text: string;
-    source: string;
+  const [lastValid, setLastValid] = useState('');
+  const [caret, setCaret] = useState<{
+    input: HTMLInputElement;
+    position: number;
   } | null>(null);
+  const pasted = useRef<string | null>(null);
+  useLayoutEffect(() => {
+    if (caret && document.activeElement === caret.input)
+      caret.input.setSelectionRange(caret.position, caret.position);
+  }, [caret]);
   const errorId = useId();
   const amount = grouped ? parseVndInput(value) : parsePercentInput(value);
   const invalid = String(value) !== '' && !Number.isFinite(amount);
@@ -44,7 +49,9 @@ export function MoneyInput({
   const display =
     String(value) !== '' && Number.isFinite(amount) && grouped
       ? new Intl.NumberFormat('vi-VN').format(amount)
-      : String(value);
+      : grouped && invalid
+        ? lastValid
+        : String(value);
   return (
     <>
       <Input
@@ -52,27 +59,38 @@ export function MoneyInput({
         disabled={props.disabled || !interactive}
         type="text"
         inputMode="numeric"
-        value={editing?.source === String(value) ? editing.text : display}
+        value={display}
         aria-invalid={invalid}
         aria-describedby={
           [props['aria-describedby'], invalid ? errorId : '']
             .filter(Boolean)
             .join(' ') || undefined
         }
-        onFocus={(event) =>
-          setEditing({ text: event.currentTarget.value, source: String(value) })
-        }
-        onBlur={() => setEditing(null)}
+        onPaste={(event) => {
+          props.onPaste?.(event);
+          pasted.current = event.clipboardData.getData('text');
+        }}
         onChange={(event) => {
-          const deleting =
-            !!(event.nativeEvent as InputEvent).inputType?.startsWith(
-              'delete',
-            ) && Number.isFinite(amount);
-          const next = grouped
-            ? normalizeVndEditing(event.target.value, deleting)
-            : event.target.value;
-          setEditing({ text: event.target.value, source: next });
-          onValueChange(next);
+          if (!grouped) {
+            onValueChange(event.currentTarget.value);
+            return;
+          }
+          const input = event.currentTarget,
+            native = event.nativeEvent as InputEvent;
+          const next = editVndInput({
+            previous: display,
+            text: input.value,
+            caret: input.selectionStart ?? input.value.length,
+            inputType: native.inputType ?? '',
+            data:
+              native.inputType === 'insertFromPaste'
+                ? pasted.current
+                : native.data,
+          });
+          pasted.current = null;
+          setLastValid(next.display);
+          setCaret({ input, position: next.caret });
+          onValueChange(next.value);
         }}
       />
       {invalid && (

@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
   parseVndInput,
-  normalizeVndEditing,
   parsePercentInput,
   parseDiscountInput,
   lineTotal,
@@ -13,19 +12,47 @@ import {
   cashNoteSuggestions,
   vnd,
 } from '../../lib/money';
+import { editVndInput } from '../../lib/money-edit';
 describe('Vietnamese VND input', () => {
-  it('normalizes partial grouping while editing without masking invalid characters', () => {
-    expect(parseVndInput(normalizeVndEditing('50.00', true))).toBe(5000);
-    for (const value of ['5,000', '5000'])
-      expect(parseVndInput(normalizeVndEditing(value))).toBe(5000);
-    expect(normalizeVndEditing('')).toBe('');
-    expect(parseVndInput(normalizeVndEditing('50a.00'))).toBeNaN();
+  it('regroups append, middle insertion and digit/separator deletion while anchoring the caret to digits', () => {
+    for (const [
+      previous,
+      text,
+      caret,
+      inputType,
+      data,
+      value,
+      display,
+      position,
+    ] of [
+      ['50.000', '50.0000', 7, 'insertText', '0', '500000', '500.000', 7],
+      ['50.000', '510.000', 2, 'insertText', '1', '510000', '510.000', 2],
+      ['50.000', '50.00', 5, 'deleteContentBackward', null, '5000', '5.000', 5],
+      ['50.000', '5.000', 1, 'deleteContentBackward', null, '5000', '5.000', 1],
+      ['50.000', '50000', 2, 'deleteContentBackward', null, '5000', '5.000', 1],
+      ['50.000', '50000', 2, 'deleteContentForward', null, '5000', '5.000', 3],
+      ['50.000', '', 0, 'deleteContentBackward', null, '', '', 0],
+      ['', '50,000', 6, 'insertFromPaste', '50,000', '50000', '50.000', 6],
+      ['50.000', '050.000', 1, 'insertText', '0', '50000', '50.000', 0],
+    ] as const)
+      expect(editVndInput({ previous, text, caret, inputType, data })).toEqual({
+        value,
+        display,
+        caret: position,
+      });
   });
   it('does not turn decimal or mixed currency insertion into a larger integer', () => {
-    for (const value of ['1.5', '50,000.00', '50.00'])
-      expect(parseVndInput(normalizeVndEditing(value))).toBeNaN();
-    expect(normalizeVndEditing('50,000')).toBe('50000');
-    expect(normalizeVndEditing('50.000')).toBe('50000');
+    for (const text of ['1.5', '50,000.00', '50.00', '50a.00', '2147483648']) {
+      const edit = editVndInput({
+        previous: '50.000',
+        text,
+        caret: text.length,
+        inputType: 'insertFromPaste',
+        data: text,
+      });
+      expect(parseVndInput(edit.value)).toBeNaN();
+      expect(edit.display).toBe('50.000');
+    }
     for (const value of ['1.5', '1,5', '1.000', '101', ''])
       expect(parsePercentInput(value)).toBeNaN();
     expect(parseDiscountInput('50.000', 'AMOUNT')).toBe(50000);
