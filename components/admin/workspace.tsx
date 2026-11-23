@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { MoneyInput } from '@/components/ui/money-input';
 import { adminSchemas, banks, type Resource } from '@/lib/admin-validation';
+import { posFetch } from '@/lib/pos-fetch';
 
 type Row = { id: string; name: string; [key: string]: unknown };
 type Data = Partial<Record<Resource, Row[]>>;
@@ -210,7 +211,7 @@ export function AdminWorkspace({
     setError('');
     setNotice('');
     try {
-      const response = await fetch('/api/admin/' + resource, {
+      const response = await posFetch('/api/admin/' + resource, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -218,7 +219,7 @@ export function AdminWorkspace({
       const result = await response.json();
       if (!response.ok)
         throw new Error(result.error ?? 'Không thể lưu dữ liệu');
-      const refreshed = await fetch('/api/admin/' + resource);
+      const refreshed = await posFetch('/api/admin/' + resource);
       if (!refreshed.ok)
         throw new Error(
           'Đã lưu nhưng chưa thể tải lại. Vui lòng tải lại trang.',
