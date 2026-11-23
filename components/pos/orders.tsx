@@ -8,9 +8,15 @@ import { OrderTools } from './order-tools';
 export function Orders({
   initial,
   tables,
+  history,
 }: {
   initial: SaleOrder[];
   tables: { id: string; name: string; area: string }[];
+  history?: {
+    shiftId?: string;
+    date?: string;
+    shifts: { id: string; openedAt: string; closedAt: string | null }[];
+  };
 }) {
   const [orders, setOrders] = useState(initial);
   const [status, setStatus] = useState('ALL');
@@ -31,9 +37,51 @@ export function Orders({
         </p>
         <h1 className="mt-2 text-3xl font-bold">Đơn hàng</h1>
         <p className="mt-2 text-stone-500">
-          Các đơn trong ca đang mở. Chạm chi tiết để xem món và lịch sử hủy.
+          Chọn ca hoặc ngày tạo đơn để tìm hóa đơn cũ và in lại.
         </p>
       </header>
+      {history && (
+        <div className="flex flex-wrap gap-4">
+          <form method="get" className="flex flex-wrap items-end gap-2">
+            <label className="grid gap-2">
+              Ca làm việc
+              <select
+                aria-label="Lọc theo ca"
+                name="shiftId"
+                defaultValue={history.shiftId ?? 'current'}
+                className="min-h-12 rounded-xl border bg-white p-3"
+              >
+                <option value="current">Ca đang mở</option>
+                {history.shifts.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {new Date(s.openedAt).toLocaleString('vi-VN', {
+                      timeZone: 'Asia/Ho_Chi_Minh',
+                    })}{' '}
+                    · {s.closedAt ? 'Đã đóng' : 'Đang mở'}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button className="min-h-12 rounded-xl border px-4">Xem ca</button>
+          </form>
+          <form method="get" className="flex items-end gap-2">
+            <label className="grid gap-2">
+              Ngày tạo đơn
+              <input
+                aria-label="Lọc theo ngày"
+                className="min-h-12 rounded-xl border bg-white p-3"
+                type="date"
+                name="date"
+                defaultValue={history.date}
+                required
+              />
+            </label>
+            <button className="min-h-12 rounded-xl border px-4">
+              Xem ngày
+            </button>
+          </form>
+        </div>
+      )}
       <div className="flex flex-wrap gap-2" aria-label="Lọc trạng thái">
         {Object.entries(labels).map(([value, label]) => (
           <button

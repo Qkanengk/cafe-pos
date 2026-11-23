@@ -3,6 +3,7 @@ import { apiUser, apiError } from '@/lib/api';
 import { checkoutSchema } from '@/lib/sales-validation';
 import { prepareOrder, orderInclude } from '@/lib/sales';
 import { db } from '@/lib/db';
+import { orderHistoryWhere } from '@/lib/order-history';
 export async function POST(request: NextRequest) {
   try {
     const actor = await apiUser(request);
@@ -20,7 +21,10 @@ export async function GET(request: NextRequest) {
     });
     return NextResponse.json(
       await db.order.findMany({
-        where: { storeId: actor.storeId, shiftId: shift?.id ?? 'none' },
+        where: orderHistoryWhere(actor.storeId, shift?.id, {
+          shiftId: request.nextUrl.searchParams.get('shiftId') || undefined,
+          date: request.nextUrl.searchParams.get('date') || undefined,
+        }),
         include: orderInclude,
         orderBy: { createdAt: 'desc' },
       }),
