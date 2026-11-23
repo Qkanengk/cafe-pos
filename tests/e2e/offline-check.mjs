@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
+import { sql } from './database.mjs';
 import { mkdir } from 'node:fs/promises';
 import { chromium, expect } from '@playwright/test';
 const baseURL = process.env.BASE_URL ?? 'http://localhost:3000',
   shots = process.env.SCREENSHOT_DIR ?? '/home/ubuntu/shots';
 await mkdir(shots, { recursive: true });
 const browser = await chromium.launch({
-  executablePath: process.env.CHROME_PATH ?? '/usr/bin/google-chrome',
+  executablePath: process.env.CHROME_PATH ?? chromium.executablePath(),
   headless: true,
   args: ['--no-sandbox'],
 });
@@ -33,25 +33,6 @@ async function api(ctx, path, method = 'GET', data, status = 200) {
   const body = await response.json();
   assert.equal(response.status(), status, path + ': ' + JSON.stringify(body));
   return body;
-}
-function sql(query) {
-  return execFileSync(
-    'docker',
-    [
-      'compose',
-      'exec',
-      '-T',
-      'db',
-      'psql',
-      '-U',
-      'cafe',
-      '-d',
-      process.env.CHECK_DATABASE ?? 'cafe',
-      '-Atc',
-      query,
-    ],
-    { encoding: 'utf8' },
-  ).trim();
 }
 async function queued() {
   return page.evaluate(

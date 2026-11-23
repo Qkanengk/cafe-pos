@@ -1,115 +1,173 @@
-# Cafe POS
+# Cafe POS · Quầy bán hàng tiếng Việt
 
-Ứng dụng POS một quán, tiếng Việt. Đã có dữ liệu mẫu, đăng nhập, quản trị thực đơn/nhân viên/cài đặt và luồng mở ca → bán hàng → thanh toán → in → đóng ca.
+POS cho **một quán cafe, 1–10 nhân viên**, dùng trên tablet ngang và điện thoại của chủ quán. Chạy cục bộ bằng Docker Compose, không cần cloud, CDN, API ngân hàng hay font từ Internet lúc bán hàng.
 
-## Docker (Node 22 + PostgreSQL 16)
+## Chạy nhanh bằng Docker
+
+Yêu cầu: Docker Engine/Desktop và Docker Compose v2; cổng 3000 còn trống.
 
 ```sh
+git clone https://github.com/Qkanengk/cafe-pos.git
+cd cafe-pos
+git switch devin/cafe-pos-mvp
 docker compose up -d --build
 ```
 
-Mở http://localhost:3000/login. Container tự chạy migration rồi seed **chỉ khi chưa có cửa hàng** (transaction + advisory lock). Dữ liệu được lưu trong volume `cafe_data`. Không cần dịch vụ ngoài hoặc tài nguyên CDN lúc chạy.
-
-- Chủ quán: `owner@cafe.local` / `owner123`, hoặc PIN `1111`.
-- Thu ngân: chọn **Lan**, PIN `2222`.
-- Đổi `AUTH_SECRET` trong môi trường trước khi sử dụng ngoài máy cục bộ. Tài khoản mẫu và mật khẩu database chỉ phục vụ demo; đổi chúng trước triển khai thực tế. Dùng HTTPS để cookie có cờ Secure.
-
-## Phát triển
+Mở **http://localhost:3000** (tự chuyển tới đăng nhập), hoặc http://localhost:3000/pos. App chờ PostgreSQL healthy, chạy migration, seed nếu chưa có cửa hàng, rồi khởi động. Đợi log `Ready` trước khi đăng nhập:
 
 ```sh
-source ~/.nvm/nvm.sh
+docker compose ps
+docker compose logs -f app
+```
+
+| Tài khoản demo | Email / mật khẩu                | Đăng nhập PIN                   |
+| -------------- | ------------------------------- | ------------------------------- |
+| Chủ quán       | `owner@cafe.local` / `owner123` | Chọn **Chủ quán**, PIN **1111** |
+| Thu ngân       | —                               | Chọn **Lan**, PIN **2222**      |
+
+Mở ca trước khi bán. Seed có 20 món, 4 danh mục, 5 topping, 8 bàn: cà phê đen S/M/L 20/25/30 nghìn, bạc xỉu từ 29 nghìn, bánh một size **Phần**. Thẻ món hiện giá thấp nhất và **từ** nếu các size khác giá. Seed lại **không sửa dữ liệu cửa hàng đã tồn tại**.
+
+### Docker Hub mặc định; mirror chỉ là tùy chọn
+
+Dockerfile mặc định `ARG NODE_IMAGE=node:22-bookworm-slim` (Docker Hub), PostgreSQL `postgres:16-alpine`. Không có mirror bắt buộc. Nếu registry bị giới hạn 429, có thể truyền image Node tương đương chỉ cho build:
+
+```sh
+NODE_IMAGE=public.ecr.aws/docker/library/node:22-bookworm-slim docker compose up -d --build
+```
+
+Build trực tiếp cũng hỗ trợ `docker build --build-arg NODE_IMAGE=node:22-bookworm-slim -t cafe-pos-app .`. Không đặt mirror trong mã nguồn mặc định; build cần Internet để tải image/npm, còn bán hàng không cần dịch vụ Internet ngoài.
+
+### Xóa dữ liệu và tạo lại demo
+
+**Lệnh sau xóa toàn bộ doanh số, ca, nhân viên và menu trong volume! Chỉ dùng cho demo/test; đồng bộ hết queue trên mọi thiết bị trước khi reset.**
+
+```sh
+docker compose down -v
+docker compose up -d --build
+```
+
+Dữ liệu PostgreSQL nằm trong named volume `cafe_data` (Compose thêm tiền tố tên project). `docker compose down` không có `-v` giữ nguyên dữ liệu. Sau reset, đăng nhập lại và tải POS khi có mạng để thay cache cũ. Không có đơn/ca giao dịch trong seed.
+
+## Tính năng
+
+- **Đăng nhập/phân quyền:** chủ quán email/mật khẩu hoặc tên + PIN; JWT cookie HttpOnly/SameSite=Lax, phiên 12 giờ, Secure khi HTTPS. Kiểm tra nhân viên còn hoạt động trong database. `/admin/*`, `/reports` và API tương ứng OWNER-only.
+- **Ca:** mở ca với tiền đầu ca, đóng ca với tiền thực đếm/chênh lệch; dự kiến = tiền đầu ca + tiền khách đưa − tiền thối, không cộng chuyển khoản. Còn đơn OPEN thì không đóng ca.
+- **POS:** danh mục/tìm kiếm, trạng thái hết hàng, size/topping/ghi chú nhanh, số lượng, mang đi/tại bàn, giảm %/tiền, tiền thối và gợi ý mệnh giá. VND số nguyên, toàn bộ tính giá ở `lib/money.ts`.
+- **Thanh toán:** tiền mặt hoặc VietQR NAPAS/EMVCo tạo PNG tại máy; thu ngân xác nhận tiền về thủ công, có ghi người xác nhận. UUID chống tạo đơn/thu tiền trùng; snapshot giữ tên/giá/topping/ghi chú lịch sử.
+- **In:** bill và phiếu pha chế 58/80mm, hộp in trình duyệt, in lại đơn PAID. Chưa kiểm tra máy in nhiệt vật lý.
+- **Bàn/đơn:** sơ đồ theo khu vực và tổng đang phục vụ; giữ OPEN, mở lại, thêm món, tách số lượng, gộp bill, chuyển bàn. Phân bổ giảm giá nguyên VND khi tách; gộp giữ tổng mức giảm.
+- **Xung đột/hủy:** `Order.version` cũ trả 409 và thông báo tải lại. Hủy món/đơn OPEN phải có lý do + PIN OWNER đang hoạt động; giữ VOIDED/CANCELLED và audit, không ghi PIN. Chưa hoàn tiền/hủy đơn PAID. Bill nguồn đã gộp phân biệt với hủy trong audit.
+- **Quản trị:** CRUD danh mục/món/topping/thứ tự/giá S/M/L hoặc Phần, bật/tắt bán một chạm; ảnh bằng URL (không upload/cloud); nhân viên/PIN/vai trò/ngừng hoạt động; quán/ngân hàng/BIN/footer/khổ giấy. Validation Zod dùng chung, thay đổi có audit.
+- **Báo cáo điện thoại:** khoảng ngày (hôm nay mặc định, tối đa 366 ngày), doanh thu ngày/ca/phương thức, số đơn/trung bình, top 10 số lượng/doanh thu, món/đơn hủy theo ca với lý do và chủ quán cho phép.
+
+## Ngoại tuyến: chuẩn bị và giới hạn
+
+1. Service worker/PWA cần **localhost hoặc HTTPS**. HTTP qua IP LAN không đủ secure context; triển khai tablet trong LAN cần TLS tin cậy. HTTPS/reverse proxy không được cấu hình sẵn trong Compose demo.
+2. Khi có mạng: đăng nhập, mở ca, vào POS và đợi **Sẵn sàng bán ngoại tuyến**. Cache shell/POS/bàn/asset/menu; font hệ thống và icon SVG/PNG cục bộ. Dexie giữ menu có chữ ký, quán/ngân hàng, ca và thời hạn phiên.
+3. Mất mạng vẫn tạo đơn mới mang đi/tại bàn, trả tiền mặt hoặc xem VietQR/xác nhận thủ công. Chỉ báo thành công sau khi IndexedDB lưu bền vững đơn + UUID payment. Mã **TAM-xxxxxxxx** tạm thời, header hiện số đơn chờ.
+4. Reconnect và mỗi 10 giây gửi queue đến `/api/sync`; nút đồng bộ cho thử ngay. Ghi nguyên tử từng đơn/payment/audit, replay không trùng; chỉ xóa queue khi server xác nhận. Lỗi hiện ở header và được giữ để thử lại, không âm thầm bỏ đơn.
+5. Server cấp mã CF tăng tuần tự theo ngày thanh toán Việt Nam. Banner đổi TAM thành CF và có liên kết in sau sync; giữ ca gốc, snapshot giá đã ký và người xác nhận. Ngày báo cáo theo thời điểm thanh toán; mục hủy theo audit. Chỉ tính doanh thu PAID đã sync.
+6. Phiên offline hết hạn cùng phiên đăng nhập 12 giờ. Cần mạng để đăng nhập mới/chuyển nhân viên, mở/đóng ca, quản trị, sửa/gộp/tách/hủy đơn máy chủ và xem báo cáo. Đơn giữ offline ở URL UUID trên thiết bị đến lúc trả tiền, không đẩy OPEN lên server.
+7. Đơn bán trước khi đóng ca có thể sync muộn (đối soát ca đã đóng có thể đổi). Nếu ca đóng trước thời điểm bán, hoặc món/bàn đã xóa, queue giữ lỗi để chủ quán kiểm tra thay vì đổi ca/giá. Queue theo đúng tài khoản nhân viên; logout không xóa giao dịch chờ.
+8. Không xóa dữ liệu trình duyệt, dùng chế độ riêng tư, gỡ PWA hoặc reset database khi còn đơn chờ. Mất thiết bị/storage cũng mất queue chưa sync; đây không phải bản sao lưu server.
+
+## Phát triển (Node 22)
+
+Dùng npm và PostgreSQL 16. Có thể giữ stack demo cổng 3000 và chạy dev cổng 3002 với database riêng:
+
+```sh
+source ~/.nvm/nvm.sh    # nếu dùng nvm
 nvm use 22
 npm ci
 cp .env.example .env
-```
-
-Prisma lấy `DATABASE_URL` từ môi trường; export các biến trong `.env` trước khi chạy CLI. Nếu chạy Node bên ngoài Docker, dùng PostgreSQL cục bộ hoặc mở cổng database qua compose override riêng (compose mặc định không công khai database).
-
-```sh
+# PostgreSQL dev độc lập, chỉ mở cổng trên loopback:
+docker run --name cafe-pos-dev-db --rm -d -p 127.0.0.1:5432:5432 \
+  -e POSTGRES_USER=cafe -e POSTGRES_PASSWORD=cafe -e POSTGRES_DB=cafe postgres:16-alpine
+set -a
+. ./.env
+set +a
 npx prisma generate
 npx prisma migrate deploy
 npm run db:seed
-npm run dev
+npm run dev -- --port 3002
 ```
 
+Compose mặc định không public cổng database; hostname `db` chỉ dành cho app trong Docker. Không dùng database thật cho test. App Router Next.js 16 dùng `proxy.ts`, không phải `middleware.ts`.
+
+## Biến môi trường
+
+| Biến               | Ý nghĩa                                                                                                                                                                                                   |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`     | Prisma/pg; Compose đặt `postgresql://cafe:cafe@db:5432/cafe?schema=public`. Dev/CI dùng host/port truy cập được từ Node. CLI Prisma cần export biến; `.env.example` có ví dụ loopback.                    |
+| `AUTH_SECRET`      | Ít nhất 32 ký tự, ký JWT và bảng giá offline. Compose có giá trị demo; **đổi secret, mật khẩu database và tài khoản mẫu trước khi triển khai thật**. Đổi secret làm token/menu cache cũ không còn hợp lệ. |
+| `NODE_IMAGE`       | Build arg qua Compose; mặc định Docker Hub `node:22-bookworm-slim`, mirror chỉ khi tự chọn.                                                                                                               |
+| `HOSTNAME`, `PORT` | Server standalone; container dùng `0.0.0.0:3000`.                                                                                                                                                         |
+| `BASE_URL`         | E2E, mặc định `http://localhost:3000`. Phải là cùng app/database đang kiểm thử.                                                                                                                           |
+| `CHROME_PATH`      | Tùy chọn đường dẫn Chrome E2E; nếu trống dùng Chromium đã cài bằng Playwright.                                                                                                                            |
+| `CHECK_DATABASE`   | Tên database khi E2E dùng `docker compose exec db psql`, mặc định `cafe`. Không cần khi đã export `DATABASE_URL`.                                                                                         |
+
+## Kiểm thử
+
 ```sh
-npm run lint && npx tsc --noEmit && npm test
+npm run lint
+npx tsc --noEmit
+npm test
 npm run build
 ```
 
-Next.js 16 dùng `proxy.ts` thay tên `middleware.ts`; middleware kiểm tra JWT, các layout server kiểm tra lại người dùng trong database. Trang `/admin/*` và `/reports` chỉ dành cho chủ quán. Phiên hết hạn sau 12 giờ, cookie HttpOnly/SameSite=Lax. Môi trường HTTP local dùng cookie không Secure; HTTPS tự bật Secure.
+### Suite E2E chính thức
 
-Bản in được kiểm tra trong trình duyệt, chưa thử máy in nhiệt thực tế. Thiết lập menu/nhân viên, mở/đóng ca, sửa đơn máy chủ và báo cáo cần kết nối đến máy chủ POS.
+**Chỉ chạy trên DB demo mới seed, không có đơn/ca.** Suite kiểm tra điều kiện này trước khi thay đổi dữ liệu; không tự xóa database. Các ca chạy tuần tự, không retry để tránh che lỗi dữ liệu. Suite tái dùng script kiểm chứng dưới `tests/e2e/`, có 4 test:
 
-## Quản trị (giai đoạn 2)
-
-- `/admin/menu`: danh mục và thứ tự hiển thị, món với giá S/M/L, topping; chạm trạng thái để chuyển đang bán/hết hàng. Ảnh dùng URL http/https do chủ quán cung cấp, không có dịch vụ upload/cloud. URL ảnh cần truy cập được từ thiết bị tại quầy; bỏ trống để dùng biểu tượng mặc định.
-- `/admin/staff`: thêm/sửa/xóa nhân viên, đặt lại PIN/mật khẩu và ngừng hoạt động. Để trống PIN/mật khẩu khi sửa để giữ nguyên. Không thể tự khóa, tự xóa hoặc hạ quyền tài khoản đang dùng. Tài khoản đã có lịch sử nên ngừng hoạt động thay vì xóa.
-- `/admin/settings`: thông tin quán, danh sách BIN ngân hàng phổ biến, số/tên tài khoản, lời nhắn hóa đơn và khổ giấy 58/80 mm.
-- API `/api/admin/{categories,products,toppings,users,settings}` kiểm tra OWNER đang hoạt động trong database ở mỗi yêu cầu; mọi thay đổi và AuditLog nằm trong cùng transaction. Dữ liệu liên quan đến lịch sử được bảo vệ bằng khóa ngoại. API không trả hash PIN/mật khẩu và audit không lưu thông tin bí mật.
-- Nhân viên ngừng hoạt động không thể đăng nhập hoặc tiếp tục dùng phiên hiện có. Validation Zod dùng chung giữa form và server.
-
-Kiểm tra tương tác quản trị (cần Compose đang chạy và Chrome cục bộ; dùng tài khoản demo mặc định hoặc biến `OWNER_EMAIL`/`OWNER_PASSWORD`):
+1. Quản trị CRUD, chặn thu ngân, responsive.
+2. PIN → mở ca → order 3 món/topping/ghi chú → tiền mặt/VietQR → bill/phiếu pha chế → đóng ca.
+3. Giữ/mở lại đơn tại bàn, tách/gộp/chuyển, PIN sai/đúng, audit và hai trình duyệt sửa cùng phiên bản.
+4. Offline 5 đơn tiền mặt, cold reload/bàn/QR, lỗi sync 503 giữ queue, reconnect/replay không trùng, đóng ca và báo cáo OWNER so với SQL hôm nay.
 
 ```sh
-CHROME_PATH=$(command -v google-chrome) SCREENSHOT_PATH=/home/ubuntu/shots/admin-menu.png node tests/e2e/admin-check.mjs
+npm ci
+npx playwright install --with-deps chromium
+docker compose down -v             # XÓA DB demo/test, không dùng với dữ liệu thật
+docker compose up -d --build
+npm run test:e2e
+# Đọc báo cáo HTML/ảnh chụp:
+npx playwright show-report
+# Sau test, trả demo về sạch:
+docker compose down -v
+docker compose up -d --build
 ```
 
-Script kiểm tra CRUD/giá size/hết hàng/PIN/ngừng hoạt động/cài đặt, chặn thu ngân, lưu ảnh màn hình và xóa dữ liệu kiểm thử sau khi chạy. AuditLog kiểm thử được giữ lại.
+Khi không export `DATABASE_URL`, helper SQL dùng PostgreSQL trong Compose (không cần mở port). Khi export biến này, helper dùng `pg` trực tiếp như CI, không cần Docker CLI. Đừng để `DATABASE_URL` trỏ nhầm DB khác với `BASE_URL`. Nếu chỉ có Chrome hệ thống: `CHROME_PATH=$(command -v google-chrome) npm run test:e2e`.
 
-Tính tiền chỉ ở `lib/money.ts`: VND nguyên không âm, phần trăm nguyên 0–100, làm tròn nửa lên, giảm tiền tối đa bằng tạm tính, thiếu tiền mặt báo lỗi. VietQR tạo payload NAPAS + CRC16-CCITT-FALSE và PNG tại máy, không gọi API ngân hàng.
+Suite giữ lại lịch sử test cho kiểm tra, nên cần reset trước lần chạy tiếp theo và trước demo. Output, ảnh chụp từng ca ở `test-results/`, báo cáo ở `playwright-report/`; cả hai bị gitignore. Các script `.mjs` cũng chạy riêng được, nhưng không thay thế preflight fresh DB của suite.
 
-## Bán hàng (giai đoạn 3)
+### CI
 
-- `/shifts`: mở ca với tiền đầu ca; một ca dùng chung các thiết bị. Đóng ca sau khi thanh toán hết đơn chờ, nhập tiền thực đếm và xem chênh lệch. Tiền dự kiến = tiền đầu ca + tiền khách đưa − tiền thối; chuyển khoản không cộng vào két. Lịch sử hiển thị 50 ca gần nhất.
-- `/pos`: chọn danh mục/tìm món, size M mặc định, topping, ghi chú nhanh và số lượng. Chạm dòng giỏ để sửa; biểu tượng thùng rác để xóa. Chọn mang đi/tại bàn, bàn và giảm giá %/số tiền. Món hết hàng bị khóa.
-- Khi chạm **Thanh toán**, server chốt nội dung và giá từ thực đơn hiện tại, lưu snapshot tên/size/giá/topping/ghi chú. UUID do client tạo; mã `CFYYYYMMDD-0001` tăng tuần tự theo cửa hàng và ngày Việt Nam, được cấp trong transaction có khóa. Gửi lại cùng UUID/nội dung không tạo trùng đơn; gửi lại thanh toán không thu hai lần.
-- Tiền mặt: nhập tiền hoặc chạm số gợi ý và xem tiền thối. Chuyển khoản: VietQR lớn có số tiền và mã đơn; thu ngân phải kiểm tra tiền về rồi xác nhận. Lưu người xác nhận cho cả hai phương thức. Không có xác minh ngân hàng tự động.
-- Có thể đóng màn hình thanh toán, giữ đơn và tiếp tục sửa ở `/pos` hoặc `/orders`. Giỏ chưa giữ chỉ nằm trong bộ nhớ trình duyệt; đơn đã giữ nằm trên máy chủ và mở lại được sau khi tải lại trang.
-- Sau thanh toán, **In bill** và **In phiếu pha chế** mở trang `/print/receipt?orderId=...` hoặc `/print/bar?orderId=...`; chọn **In ngay** để mở hộp in trình duyệt. Khổ giấy 58/80mm lấy từ cài đặt. In lại tại `/orders`. Biểu tượng dùng SVG `lucide-react` đóng gói cùng ứng dụng, không cần font biểu tượng/CDN.
+`.github/workflows/ci.yml`: Node 22 + PostgreSQL service mới cho mỗi job, npm ci → Prisma generate → lint → typecheck → unit → production build → migrate/seed → cài Playwright Chromium → standalone server → E2E. Artifact giữ báo cáo/ảnh/log kể cả khi lỗi. Không phụ thuộc Docker Compose hay Chrome hệ thống khi chạy E2E trong Actions.
 
-Kiểm tra bán hàng bằng Playwright (Compose đang chạy, tài khoản demo, không có ca mở):
+Có thể kiểm tra cú pháp/ngữ nghĩa workflow với `actionlint .github/workflows/ci.yml`. Actions thực tế chạy khi push/PR; actionlint không thay thế việc chạy CI.
 
-```sh
-CHROME_PATH=$(command -v google-chrome) SCREENSHOT_DIR=/home/ubuntu/shots node tests/e2e/sales-check.mjs
+## Cấu trúc
+
+```text
+app/(auth)/             Đăng nhập
+app/(pos)/              POS, bàn, đơn, ca, workspace offline
+app/(admin)/            Menu, nhân viên, cài đặt, báo cáo
+app/api/                Auth, admin, bán hàng, menu cache, sync, reports
+app/print/              Bill và phiếu pha chế
+components/             UI, POS, admin, báo cáo, trạng thái mạng
+lib/                    Auth/session, Zod, VND/VietQR, sync/offline, báo cáo
+prisma/                 Schema, migrations, menu mẫu và seed
+public/                 Service worker, manifest, icon PWA cục bộ
+tests/unit/             Vitest: giá/tiền/auth/validation/bán hàng/sync/báo cáo
+tests/e2e/              Playwright runner + các luồng kiểm chứng và helper DB
+.github/workflows/      CI
+Dockerfile              Multi-stage, standalone, user node
+docker-compose.yml      App + PostgreSQL, named volume và healthcheck
 ```
 
-Script đăng nhập PIN → mở ca → thêm 3 món có topping/ghi chú → tiền mặt → bill/phiếu pha chế → VietQR → đóng ca, đồng thời kiểm tra idempotency, validation, giảm giá và SVG. Lưu 5 ảnh yêu cầu cùng ảnh quản trị và đối soát. Giao dịch kiểm thử được giữ để in lại; ca kiểm thử được đóng, cài đặt khổ giấy được khôi phục. Thời gian chạm tự động không phải phép đo thao tác của nhân viên thực tế.
+## Ngoài phạm vi / bước tiếp theo
 
-## Bàn & giữ đơn (giai đoạn 4)
+Chưa có đa chi nhánh, tồn kho/nguyên liệu, khách hàng thân thiết/voucher, VAT/kế toán/hóa đơn điện tử, Grab/ShopeeFood, chấm công, app native, webhook xác nhận ngân hàng, hoàn tiền đơn PAID, upload ảnh, xuất Excel hay agent ESC/POS/WebUSB. Chưa chạy thử thực tế một ngày tại quán hoặc máy in nhiệt vật lý.
 
-- Dữ liệu mẫu mới có giá riêng cho từng món và size: cà phê đen S/M/L 20/25/30 nghìn, bạc xỉu từ 29 nghìn; bánh chỉ một size **Phần**. Thẻ món hiển thị **từ** giá thấp nhất khi các size khác giá. Seed thoát ngay nếu đã có cửa hàng, không sửa giá, tài khoản hay lịch sử của database hiện có. Form quản trị giữ nguyên loại một phần của bánh đã seed.
-- `/tables`: nhóm bàn theo khu vực, trống/đang phục vụ và tổng các đơn mở. Chạm bàn trống để tạo đơn tại bàn; chạm bàn bận để tiếp tục. Khi tách thành nhiều bill cùng bàn, các bill có liên kết riêng dưới bàn.
-- **Giữ đơn / Tạm tính** lưu OPEN mà chưa thu tiền. Mở lại từ bàn hoặc bộ lọc **Đang giữ** ở `/orders`. Có thể thêm món, tăng số lượng, sửa ghi chú/giảm giá; món đã lưu giữ nguyên snapshot giá. Giảm số lượng bằng tách đơn hoặc hủy món có PIN, không âm thầm xóa lịch sử.
-- Mọi sửa đổi, chuyển bàn, tách/gộp/hủy đều gửi `Order.version`, kiểm tra trong transaction và tăng version. Thiết bị dùng bản cũ nhận **409** cùng thông báo tiếng Việt và liên kết **Tải lại đơn**. Thanh toán cũng kiểm tra phiên bản; retry đơn đã thanh toán vẫn idempotent.
-- **Tách đơn** chọn món/số lượng sang UUID mới, giữ lại ít nhất một món ở đơn gốc. Snapshot topping/ghi chú được sao chép. Giảm giá thực tế được phân bổ theo tỷ lệ tạm tính, làm tròn VND một lần; hai đơn giữ nguyên tổng tiền. **Gộp đơn** chuyển món đang bán của đơn nguồn vào đơn hiện tại; cộng hai mức giảm thành giảm tiền. Đơn nguồn đóng ở trạng thái CANCELLED, audit phân biệt `MERGED_INTO` với hủy. **Chuyển bàn** chỉ nhận bàn trống; bàn bận dùng gộp đơn.
-- **Hủy món / Hủy đơn** chỉ áp dụng đơn OPEN, yêu cầu lý do và PIN của OWNER đang hoạt động cùng cửa hàng. Lưu VOIDED/CANCELLED, lý do và ID chủ quán cho phép trong AuditLog, không lưu PIN. Hủy món cuối cùng tự đóng đơn. Đơn đã thu tiền không sửa/hủy trong giai đoạn này; chưa có luồng hoàn tiền.
-- `/orders` hiển thị toàn bộ đơn của ca đang mở, lọc trạng thái, chi tiết snapshot/món hủy, tiếp tục đơn và in lại bill/phiếu pha chế. Sau khi đóng ca, danh sách ca hiện tại trống; liên kết in đã lưu vẫn dùng được.
-
-Kiểm tra bàn/giữ đơn (Compose chạy, tài khoản demo và không có ca mở; script đọc AuditLog qua `docker compose exec db psql`):
-
-```sh
-CHROME_PATH=$(command -v google-chrome) node tests/e2e/tables-check.mjs
-```
-
-Để kiểm tra giá mẫu mới mà không đổi database hiện có, tạo database kiểm thử riêng trong cùng PostgreSQL rồi chạy image ứng dụng với `DATABASE_URL` trỏ đến database đó, cổng phụ 3001. Chạy script với `BASE_URL=http://localhost:3001 CHECK_DATABASE=cafe_phase4_check EXPECT_FRESH_PRICES=1`. Script giữ lại lịch sử giao dịch kiểm thử, đóng ca khi hoàn tất và lưu `tables.png`, `void-pin.png`, `orders.png`, `pos.png` cùng ảnh lỗi đồng thời vào `SCREENSHOT_DIR` (mặc định `/home/ubuntu/shots`).
-
-## Ngoại tuyến & báo cáo (giai đoạn 5)
-
-- PWA có manifest và icon PNG cục bộ, service worker tự viết. Cần **localhost hoặc HTTPS**; IP LAN qua HTTP không có bảo đảm service worker. Font hệ thống, không tải font/CDN.
-- Đăng nhập, mở ca khi có mạng, vào POS, đợi **Sẵn sàng bán ngoại tuyến**. Dexie lưu menu/bảng giá có chữ ký, quán/ngân hàng, bàn, ca mở và hạn phiên. Service worker cache shell, `/pos`, `/tables`, menu JSON và asset Next.js; mất mạng vẫn tải lại trang, mở bàn trống và bán đơn mới.
-- Tiền mặt và VietQR tạo PNG tại máy; chuyển khoản vẫn cần thu ngân xác nhận. Đơn dùng UUID và mã **TAM-xxxxxxxx**. Chỉ báo thành công sau khi IndexedDB lưu bền vững cả đơn và UUID thanh toán. Không xóa dữ liệu trình duyệt/gỡ ứng dụng khi còn đơn chờ.
-- Reconnect và mỗi 10 giây gửi tối đa 20 đơn/lô đến `/api/sync`. Header có nút thử ngay. Server kiểm tra nhân viên/cửa hàng/ca, chữ ký bảng giá và tiền thối, rồi ghi nguyên tử từng đơn + snapshot + payment + audit. Một dòng lỗi không chặn dòng hợp lệ; lỗi hiện ở header, dữ liệu chờ không tự bị xóa.
-- Replay cùng UUID đơn/thanh toán và nội dung trả lại mã đã cấp. Nội dung khác cùng UUID trả 409 cho dòng đó. Mã CF tăng tuần tự theo ngày thanh toán Việt Nam trong transaction. Banner đổi TAM thành CF sau sync; in lại ở Đơn hàng. Đơn giữ đúng ca đã cache, không chuyển sang ca mới.
-- Phiên ngoại tuyến hết hạn cùng phiên đăng nhập (12 giờ); kết nối và đăng nhập lại để tiếp tục. Queue giữ theo nhân viên, chỉ sync dưới đúng tài khoản. Logout xóa cache service worker, không xóa giao dịch đang chờ trong IndexedDB. Không đăng nhập mới/chuyển nhân viên khi mất mạng.
-- Đơn giữ ngoại tuyến ở URL UUID trên thiết bị đến khi thanh toán, không đẩy OPEN lên server. Sửa/gộp/tách/hủy đơn máy chủ cần mạng/PIN. Nếu thiết bị khác đóng ca trước thời điểm bán hoặc món/bàn đã bị xóa, sync giữ dòng lỗi để chủ quán kiểm tra thay vì âm thầm đổi ca/giá. Đơn bán trước lúc đóng ca vẫn sync muộn được, có thể thay đổi đối soát ca đã đóng.
-- `/reports` và `/api/reports` OWNER-only. Mặc định hôm nay, tối đa 366 ngày, giờ Việt Nam; chỉ tính PAID đã sync. Có doanh thu ngày/ca/phương thức, số đơn, trung bình, top 10 số lượng/doanh thu. Doanh thu món gồm topping và phân bổ giảm giá nguyên VND. Món/đơn hủy có ca, lý do, OWNER cho phép từ audit; gộp bill không bị tính nhầm là hủy.
-- Báo cáo theo ngày thanh toán; mục hủy theo thời điểm audit. Dùng snapshot, không thay bởi giá/tên hiện tại.
-
-Kiểm tra production (Compose chạy, tài khoản demo, không có ca mở):
-
-```sh
-CHROME_PATH=$(command -v google-chrome) node tests/e2e/offline-check.mjs
-```
-
-Script bán 5 đơn tiền mặt offline, kiểm tra queue sau cold reload, bàn và VietQR offline; reconnect đối chiếu đúng 5 đơn/5 payment trong PostgreSQL, replay không trùng, đối chiếu báo cáo hôm nay với SQL. Giữ lịch sử thử, đóng ca thử. Ảnh trong `SCREENSHOT_DIR` (mặc định `/home/ubuntu/shots`): `offline-pending.png`, `synced.png`, `reports-phone.png` (390px).
+Trước dùng thật: đổi thông tin demo/secret, cấu hình HTTPS trong LAN, backup/khôi phục PostgreSQL có kiểm chứng, bảo vệ máy POS, theo dõi queue lỗi, thử mất mạng trên thiết bị thực và kiểm tra máy in. Sau đó mới mở rộng kho/khách hàng/webhook/đa chi nhánh.

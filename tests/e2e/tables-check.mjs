@@ -1,14 +1,13 @@
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
-import { execFileSync } from 'node:child_process';
+import { sql } from './database.mjs';
 import { chromium, expect } from '@playwright/test';
 
 const baseURL = process.env.BASE_URL ?? 'http://localhost:3000';
-const database = process.env.CHECK_DATABASE ?? 'cafe';
 const shots = process.env.SCREENSHOT_DIR ?? '/home/ubuntu/shots';
 await mkdir(shots, { recursive: true });
 const browser = await chromium.launch({
-  executablePath: process.env.CHROME_PATH ?? '/usr/bin/google-chrome',
+  executablePath: process.env.CHROME_PATH ?? chromium.executablePath(),
   headless: true,
   args: ['--no-sandbox'],
 });
@@ -319,25 +318,7 @@ try {
     "SELECT json_build_object('action',action,'data',data) FROM \"AuditLog\" WHERE \"entityId\"='" +
     order.id +
     "' AND action='VOID' ORDER BY \"createdAt\" DESC LIMIT 1;";
-  const audit = JSON.parse(
-    execFileSync(
-      'docker',
-      [
-        'compose',
-        'exec',
-        '-T',
-        'db',
-        'psql',
-        '-U',
-        'cafe',
-        '-d',
-        database,
-        '-Atc',
-        query,
-      ],
-      { encoding: 'utf8' },
-    ).trim(),
-  );
+  const audit = JSON.parse(sql(query));
   assert.equal(audit.action, 'VOID');
   assert.equal(audit.data.ownerId, boss.id);
   assert.equal(audit.data.itemId, voidItem.id);

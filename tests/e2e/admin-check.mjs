@@ -6,7 +6,7 @@ import { chromium } from '@playwright/test';
 const baseURL = process.env.BASE_URL ?? 'http://localhost:3000';
 const screenshot = process.env.SCREENSHOT_PATH ?? 'test-results/admin-menu.png';
 const browser = await chromium.launch({
-  executablePath: process.env.CHROME_PATH ?? '/usr/bin/google-chrome',
+  executablePath: process.env.CHROME_PATH ?? chromium.executablePath(),
   headless: true,
   args: ['--no-sandbox'],
 });
@@ -109,11 +109,9 @@ try {
   assert.equal(product.variants.length, 3);
   assert.deepEqual(product.variants.map((v) => v.name).sort(), ['L', 'M', 'S']);
   console.log('PASS owner UI: create product with S/M/L variants');
-  const card = page
-    .getByRole('article')
-    .filter({
-      has: page.getByRole('heading', { name: 'Cà phê muối', exact: true }),
-    });
+  const card = page.getByRole('article').filter({
+    has: page.getByRole('heading', { name: 'Cà phê muối', exact: true }),
+  });
   await card
     .getByRole('button', { name: 'Đánh dấu hết hàng Cà phê muối', exact: true })
     .click();

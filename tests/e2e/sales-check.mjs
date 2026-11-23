@@ -6,7 +6,7 @@ const baseURL = process.env.BASE_URL ?? 'http://localhost:3000';
 const shots = process.env.SCREENSHOT_DIR ?? '/home/ubuntu/shots';
 await mkdir(shots, { recursive: true });
 const browser = await chromium.launch({
-  executablePath: process.env.CHROME_PATH ?? '/usr/bin/google-chrome',
+  executablePath: process.env.CHROME_PATH ?? chromium.executablePath(),
   headless: true,
   args: ['--no-sandbox'],
 });
