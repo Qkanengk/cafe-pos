@@ -29,7 +29,11 @@ export const banks = [
   ['970426', 'MSB'],
   ['970448', 'OCB'],
 ] as const;
-export const categorySchema = z.object({ name, sortOrder });
+export const categorySchema = z.object({
+  name,
+  sortOrder,
+  isActive: z.boolean().default(true),
+});
 export const productSchema = z.object({
   name,
   categoryId: id,

@@ -53,7 +53,7 @@ export default async function Page({
   const [products, categories, toppings, tables, store, shift] =
     await Promise.all([
       db.product.findMany({
-        where: { storeId },
+        where: { storeId, category: { isActive: true } },
         include: {
           variants: { where: { isActive: true } },
           toppings: { select: { id: true } },
@@ -61,7 +61,7 @@ export default async function Page({
         orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
       }),
       db.category.findMany({
-        where: { storeId },
+        where: { storeId, isActive: true },
         orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
       }),
       db.topping.findMany({ where: { storeId }, orderBy: { name: 'asc' } }),

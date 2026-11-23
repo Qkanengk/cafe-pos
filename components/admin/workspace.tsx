@@ -103,6 +103,11 @@ export function AdminWorkspace({
     resource === 'categories'
       ? [
           { key: 'name', label: 'Tên danh mục' },
+          {
+            key: 'isActive',
+            label: 'Hiển thị danh mục trên quầy',
+            type: 'checkbox',
+          },
           { key: 'sortOrder', label: 'Thứ tự hiển thị', type: 'number' },
         ]
       : resource === 'products'
@@ -613,7 +618,11 @@ export function AdminWorkspace({
                               ? 'Chủ quán'
                               : 'Thu ngân'
                             : resource === 'categories'
-                              ? 'Thứ tự: ' + row.sortOrder
+                              ? 'Thứ tự: ' +
+                                row.sortOrder +
+                                (row.isActive
+                                  ? ' · Đang hiển thị'
+                                  : ' · Đã ẩn khỏi quầy')
                               : formatPrice(row.price)}
                       </p>
                     </div>

@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
     const actor = await apiUser(request);
     const storeId = actor.storeId;
     const products = await db.product.findMany({
-      where: { storeId },
+      where: { storeId, category: { isActive: true } },
       select: {
         id: true,
         categoryId: true,
@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
       orderBy: { name: 'asc' },
     });
     const categories = await db.category.findMany({
-      where: { storeId },
+      where: { storeId, isActive: true },
       select: { id: true, name: true },
       orderBy: { sortOrder: 'asc' },
     });

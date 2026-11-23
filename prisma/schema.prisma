@@ -85,6 +85,7 @@ model Category {
   store     Store     @relation(fields: [storeId], references: [id])
   name      String
   sortOrder Int       @default(0)
+  isActive  Boolean   @default(true)
   products  Product[]
 
   @@unique([id, storeId])

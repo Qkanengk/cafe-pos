@@ -51,7 +51,12 @@ beforeEach(() => {
       productId: 'product',
       name: 'M',
       price: 30000,
-      product: { name: 'Latte', isAvailable: true, toppings: [{ id }] },
+      product: {
+        name: 'Latte',
+        isAvailable: true,
+        toppings: [{ id }],
+        category: { isActive: true },
+      },
     },
   ]);
   mocks.db.topping.findMany.mockResolvedValue([
@@ -69,6 +74,26 @@ beforeEach(() => {
   });
 });
 describe('server sales', () => {
+  it('rejects a new order from an inactive category', async () => {
+    mocks.db.productVariant.findMany.mockResolvedValueOnce([
+      {
+        id,
+        productId: 'hidden',
+        name: 'M',
+        price: 25000,
+        product: {
+          name: 'Hidden',
+          isAvailable: true,
+          category: { isActive: false },
+          toppings: [{ id }],
+        },
+      },
+    ]);
+    await expect(prepareOrder(actor, input)).rejects.toThrow(
+      'Một món đã hết hàng',
+    );
+    expect(mocks.db.order.create).not.toHaveBeenCalled();
+  });
   it('rejects toppings not attached to the selected product', async () => {
     mocks.db.productVariant.findMany.mockResolvedValueOnce([
       {
@@ -76,7 +101,12 @@ describe('server sales', () => {
         productId: 'cake',
         name: 'Phần',
         price: 29000,
-        product: { name: 'Cake', isAvailable: true, toppings: [] },
+        product: {
+          name: 'Cake',
+          isAvailable: true,
+          toppings: [],
+          category: { isActive: true },
+        },
       },
     ]);
     await expect(prepareOrder(actor, input)).rejects.toThrow(

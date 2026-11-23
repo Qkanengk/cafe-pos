@@ -162,7 +162,14 @@ export async function prepareOrder(
         isActive: true,
         id: { in: input.lines.map((l) => l.variantId) },
       },
-      include: { product: { include: { toppings: { select: { id: true } } } } },
+      include: {
+        product: {
+          include: {
+            toppings: { select: { id: true } },
+            category: { select: { isActive: true } },
+          },
+        },
+      },
     });
     const toppings = await tx.topping.findMany({
       where: {
@@ -172,7 +179,11 @@ export async function prepareOrder(
     });
     const lines = input.lines.map((line) => {
       const variant = variants.find((v) => v.id === line.variantId);
-      if (!variant || !variant.product.isAvailable)
+      if (
+        !variant ||
+        !variant.product.isAvailable ||
+        !variant.product.category.isActive
+      )
         throw new HttpError('Một món đã hết hàng hoặc không còn tồn tại', 409);
       const selected = line.toppingIds.map((id) => {
         if (!variant.product.toppings.some((t) => t.id === id))

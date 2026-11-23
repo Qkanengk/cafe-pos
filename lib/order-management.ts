@@ -180,10 +180,15 @@ export async function editOrder(
         const variant = await tx.productVariant.findFirst({
           where: { id: line.variantId, storeId: actor.storeId, isActive: true },
           include: {
-            product: { include: { toppings: { select: { id: true } } } },
+            product: {
+              include: {
+                toppings: { select: { id: true } },
+                category: { select: { isActive: true } },
+              },
+            },
           },
         });
-        if (!variant?.product.isAvailable)
+        if (!variant?.product.isAvailable || !variant.product.category.isActive)
           throw new HttpError('Món đã hết hàng', 409);
         if (
           line.toppingIds.some(
