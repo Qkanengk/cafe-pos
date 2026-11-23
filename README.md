@@ -1,6 +1,6 @@
 # Cafe POS
 
-Ứng dụng POS một quán, tiếng Việt. Đã có nền tảng, dữ liệu mẫu, đăng nhập và quản trị thực đơn/nhân viên/cài đặt; chưa có luồng bán hàng/thanh toán.
+Ứng dụng POS một quán, tiếng Việt. Đã có dữ liệu mẫu, đăng nhập, quản trị thực đơn/nhân viên/cài đặt và luồng mở ca → bán hàng → thanh toán → in → đóng ca.
 
 ## Docker (Node 22 + PostgreSQL 16)
 
@@ -39,7 +39,7 @@ npm run build
 
 Next.js 16 dùng `proxy.ts` thay tên `middleware.ts`; middleware kiểm tra JWT, các layout server kiểm tra lại người dùng trong database. Trang `/admin/*` và `/reports` chỉ dành cho chủ quán. Phiên hết hạn sau 12 giờ, cookie HttpOnly/SameSite=Lax. Môi trường HTTP local dùng cookie không Secure; HTTPS tự bật Secure.
 
-Các route in `/print/receipt`, `/print/bar` hiện là giữ chỗ. Offline, đồng bộ, in thực tế, báo cáo và E2E luồng bán hàng thuộc các giai đoạn sau. Dexie và Playwright đã được cài để phát triển các phần đó.
+Offline, đồng bộ, quản lý bàn nâng cao, hủy món/đơn bằng PIN chủ quán và báo cáo thuộc các giai đoạn sau. Giai đoạn hiện tại cần kết nối đến máy chủ POS. Bản in được kiểm tra trong trình duyệt, chưa thử máy in nhiệt thực tế.
 
 ## Quản trị (giai đoạn 2)
 
@@ -58,4 +58,20 @@ CHROME_PATH=$(command -v google-chrome) SCREENSHOT_PATH=/home/ubuntu/shots/admin
 Script kiểm tra CRUD/giá size/hết hàng/PIN/ngừng hoạt động/cài đặt, chặn thu ngân, lưu ảnh màn hình và xóa dữ liệu kiểm thử sau khi chạy. AuditLog kiểm thử được giữ lại.
 
 Tính tiền chỉ ở `lib/money.ts`: VND nguyên không âm, phần trăm nguyên 0–100, làm tròn nửa lên, giảm tiền tối đa bằng tạm tính, thiếu tiền mặt báo lỗi. VietQR tạo payload NAPAS + CRC16-CCITT-FALSE và PNG tại máy, không gọi API ngân hàng.
-POS (point of sale) cho các quán cafe nhỏ lẻ
+
+## Bán hàng (giai đoạn 3)
+
+- `/shifts`: mở ca với tiền đầu ca; một ca dùng chung các thiết bị. Đóng ca sau khi thanh toán hết đơn chờ, nhập tiền thực đếm và xem chênh lệch. Tiền dự kiến = tiền đầu ca + tiền khách đưa − tiền thối; chuyển khoản không cộng vào két. Lịch sử hiển thị 50 ca gần nhất.
+- `/pos`: chọn danh mục/tìm món, size M mặc định, topping, ghi chú nhanh và số lượng. Chạm dòng giỏ để sửa; biểu tượng thùng rác để xóa. Chọn mang đi/tại bàn, bàn và giảm giá %/số tiền. Món hết hàng bị khóa.
+- Khi chạm **Thanh toán**, server chốt nội dung và giá từ thực đơn hiện tại, lưu snapshot tên/size/giá/topping/ghi chú. UUID do client tạo; mã `CFYYYYMMDD-0001` tăng tuần tự theo cửa hàng và ngày Việt Nam, được cấp trong transaction có khóa. Gửi lại cùng UUID/nội dung không tạo trùng đơn; gửi lại thanh toán không thu hai lần.
+- Tiền mặt: nhập tiền hoặc chạm số gợi ý và xem tiền thối. Chuyển khoản: VietQR lớn có số tiền và mã đơn; thu ngân phải kiểm tra tiền về rồi xác nhận. Lưu người xác nhận cho cả hai phương thức. Không có xác minh ngân hàng tự động.
+- Đơn đã chốt không sửa tại giỏ. Có thể đóng màn hình thanh toán và tiếp tục ở `/orders` (100 đơn gần nhất); đơn chờ được giữ trên server ngay cả khi tải lại trang. Giỏ chưa chốt chỉ nằm trong bộ nhớ trình duyệt.
+- Sau thanh toán, **In bill** và **In phiếu pha chế** mở trang `/print/receipt?orderId=...` hoặc `/print/bar?orderId=...`; chọn **In ngay** để mở hộp in trình duyệt. Khổ giấy 58/80mm lấy từ cài đặt. In lại tại `/orders`. Biểu tượng dùng SVG `lucide-react` đóng gói cùng ứng dụng, không cần font biểu tượng/CDN.
+
+Kiểm tra bán hàng bằng Playwright (Compose đang chạy, tài khoản demo, không có ca mở):
+
+```sh
+CHROME_PATH=$(command -v google-chrome) SCREENSHOT_DIR=/home/ubuntu/shots node tests/e2e/sales-check.mjs
+```
+
+Script đăng nhập PIN → mở ca → thêm 3 món có topping/ghi chú → tiền mặt → bill/phiếu pha chế → VietQR → đóng ca, đồng thời kiểm tra idempotency, validation, giảm giá và SVG. Lưu 5 ảnh yêu cầu cùng ảnh quản trị và đối soát. Giao dịch kiểm thử được giữ để in lại; ca kiểm thử được đóng, cài đặt khổ giấy được khôi phục. Thời gian chạm tự động không phải phép đo thao tác của nhân viên thực tế.
