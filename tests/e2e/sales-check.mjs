@@ -317,6 +317,24 @@ try {
     payDialog.getByRole('button', { name: 'Xác nhận đã nhận tiền' }),
   ).toBeDisabled();
   await payDialog
+    .getByLabel('Tiền khách đưa', { exact: true })
+    .fill(String(total));
+  await expect(
+    payDialog.getByRole('button', {
+      name: 'Xác nhận đã nhận tiền',
+      exact: true,
+    }),
+  ).toBeEnabled();
+  await payDialog
+    .getByLabel('Tiền khách đưa', { exact: true })
+    .fill(String(total - 1));
+  await expect(
+    payDialog.getByRole('button', {
+      name: 'Xác nhận đã nhận tiền',
+      exact: true,
+    }),
+  ).toBeDisabled();
+  await payDialog
     .getByRole('button', { name: 'Xóa tiền khách đưa', exact: true })
     .click();
   for (const digit of ['2', '000', '0', '0'])
@@ -356,6 +374,9 @@ try {
   await expect(
     payDialog.getByRole('button', { name: 'Xác nhận đã nhận tiền' }),
   ).toHaveCSS('opacity', '1');
+  console.log(
+    'PASS cash confirmation: exact tender enabled; one dong short disabled; excess tender enabled at full opacity',
+  );
   await svgCheck(page);
   await page.screenshot({ path: shots + '/payment-cash.png' });
   const paymentResponse = page.waitForResponse(
