@@ -99,11 +99,29 @@ try {
     await svgCheck(op);
   }
   console.log(
-    'PASS icons: admin add/availability/fallback and app header render bundled SVGs; no CDN icon fonts',
+    'PASS icons: admin add/availability and app navigation render bundled SVGs; no CDN icon fonts',
   );
   await page.goto('/login');
   await svgCheck(page);
   await page.getByLabel('Tên nhân viên').selectOption(lan.id);
+  await page
+    .getByRole('button', { name: 'Chọn nhân viên Lan', exact: true })
+    .click();
+  for (const digit of ['2', '2', '2', '3'])
+    await page.getByRole('button', { name: digit, exact: true }).click();
+  await page
+    .getByRole('button', { name: 'Xóa chữ số PIN cuối', exact: true })
+    .click();
+  await page.getByRole('button', { name: '2', exact: true }).click();
+  await expect(page.getByLabel('Mã PIN', { exact: true })).toHaveValue('2222');
+  await page.getByRole('button', { name: 'Xóa PIN', exact: true }).click();
+  await expect(page.getByLabel('Mã PIN', { exact: true })).toHaveValue('');
+  assert.equal(
+    await page
+      .getByLabel('Mã PIN', { exact: true })
+      .evaluate((input) => input.checkValidity()),
+    false,
+  );
   await page.getByLabel('Mã PIN', { exact: true }).fill('2222');
   await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
   await page.waitForURL('**/pos');

@@ -11,49 +11,44 @@ function Breakdown({
   testid: string;
 }) {
   return (
-    <section className="rounded-2xl border border-stone-200 bg-white p-4">
-      <h2 className="mb-4 text-lg font-bold">{title}</h2>
+    <section className="report-panel">
+      <h2>{title}</h2>
       {!rows.length ? (
         <p className="text-sm text-stone-500">Chưa có doanh thu.</p>
       ) : (
-        <ul className="divide-y divide-stone-100">
-          {rows.map((r) => (
-            <li
-              data-testid={testid + '-' + r.id}
-              key={r.id}
-              className="flex flex-wrap items-center justify-between gap-2 py-3"
-            >
-              <span className="min-w-0 text-sm">
-                {r.label}
-                <small className="block text-stone-500">{r.count} đơn</small>
-              </span>
-              <strong className="text-emerald-900">
-                {formatVnd(r.revenue)}
-              </strong>
-            </li>
-          ))}
-        </ul>
+        <table className="report-table">
+          <thead>
+            <tr>
+              <th scope="col">Nhóm</th>
+              <th scope="col">Số đơn</th>
+              <th scope="col">Doanh thu</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr data-testid={testid + '-' + r.id} key={r.id}>
+                <td>{r.label}</td>
+                <td>{r.count}</td>
+                <td className="font-semibold">{formatVnd(r.revenue)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       )}
     </section>
   );
 }
 export function Reports({ data }: { data: Report }) {
   return (
-    <div className="space-y-5">
+    <div className="reports-workspace space-y-4">
       <header>
-        <p className="text-xs font-bold uppercase tracking-widest text-emerald-800">
-          Góc nhìn chủ quán
-        </p>
-        <h1 className="mt-2 text-3xl font-bold">Báo cáo</h1>
-        <p className="mt-2 text-sm text-stone-500">
+        <h1>Báo cáo</h1>
+        <p className="mt-1 text-xs text-stone-500">
           Theo ngày thanh toán · giờ Việt Nam. Chỉ tính đơn đã thanh toán và đã
           đồng bộ.
         </p>
       </header>
-      <form
-        className="grid grid-cols-2 gap-3 rounded-2xl border border-stone-200 bg-white p-4"
-        method="get"
-      >
+      <form className="report-filters" method="get">
         <label className="min-w-0 text-sm">
           Từ ngày
           <input
@@ -76,30 +71,69 @@ export function Reports({ data }: { data: Report }) {
             className="mt-1 min-h-11 w-full min-w-0 rounded-lg border border-stone-200 px-2"
           />
         </label>
-        <button className="col-span-2 min-h-12 rounded-xl bg-emerald-800 font-bold text-white">
+        <button className="min-h-10 rounded-md bg-emerald-800 px-5 text-sm font-semibold text-white">
           Xem báo cáo
         </button>
       </form>
-      <section className="grid gap-3 sm:grid-cols-3">
+      <section className="kpi-strip">
         {[
           ['Doanh thu', formatVnd(data.revenue), 'report-revenue'],
           ['Số đơn', String(data.count), 'report-count'],
           ['Trung bình / đơn', formatVnd(data.average), 'report-average'],
+          [
+            'Tiền mặt',
+            formatVnd(
+              data.methods.find((method) => method.id === 'CASH')?.revenue ?? 0,
+            ),
+            'report-cash',
+          ],
         ].map(([label, value, id]) => (
-          <article
-            key={id}
-            className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4"
-          >
-            <p className="text-sm text-emerald-900">{label}</p>
+          <article key={id} className="p-4">
+            <p className="text-xs text-stone-500">{label}</p>
             <strong
               data-testid={id}
-              className="mt-2 block text-2xl text-emerald-950"
+              className="mt-2 block text-xl font-semibold"
             >
               {value}
             </strong>
           </article>
         ))}
       </section>
+      {data.days.length > 1 && (
+        <section className="report-panel">
+          <h2>Doanh thu theo ngày</h2>
+          <div
+            className="revenue-chart"
+            role="img"
+            aria-label={data.days
+              .map((day) => day.label + ': ' + formatVnd(day.revenue))
+              .join('; ')}
+          >
+            {data.days.map((day, index) => (
+              <div
+                key={day.id}
+                className="chart-column"
+                title={day.label + ': ' + formatVnd(day.revenue)}
+              >
+                <div
+                  style={{
+                    height: Math.max(
+                      0,
+                      (120 * day.revenue) /
+                        Math.max(1, ...data.days.map((row) => row.revenue)),
+                    ),
+                  }}
+                />
+                <span>
+                  {index % Math.ceil(data.days.length / 7) === 0
+                    ? day.id.slice(5).split('-').reverse().join('/')
+                    : ' '}
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
       <div className="grid gap-4 xl:grid-cols-2">
         <Breakdown
           title="Doanh thu theo ngày"
@@ -124,11 +158,8 @@ export function Reports({ data }: { data: Report }) {
             ['Top 10 · Doanh thu', data.topRevenue],
           ] as const
         ).map(([title, items]) => (
-          <section
-            key={title}
-            className="rounded-2xl border border-stone-200 bg-white p-4"
-          >
-            <h2 className="text-lg font-bold">{title}</h2>
+          <section key={title} className="report-panel">
+            <h2>{title}</h2>
             <p className="mt-1 text-xs text-stone-500">
               Sau phân bổ giảm giá; gồm topping.
             </p>
@@ -157,8 +188,8 @@ export function Reports({ data }: { data: Report }) {
           </section>
         ))}
       </div>
-      <section className="rounded-2xl border border-stone-200 bg-white p-4">
-        <h2 className="text-lg font-bold">Món / đơn hủy theo ca</h2>
+      <section className="report-panel">
+        <h2>Món / đơn hủy theo ca</h2>
         <p className="mt-1 text-xs text-stone-500">
           Theo thời điểm hủy trong khoảng ngày; không tính bill nguồn đã gộp.
         </p>

@@ -1,6 +1,6 @@
 'use client';
 import { useState, type FormEvent } from 'react';
-import { Coffee, Plus, Circle, CircleCheck } from 'lucide-react';
+import { Plus, Circle, CircleCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { MoneyInput } from '@/components/ui/money-input';
@@ -490,26 +490,16 @@ export function AdminWorkspace({
     </form>
   );
   return (
-    <div className="space-y-6">
+    <div className="admin-workspace space-y-4">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="mb-2 text-xs font-bold uppercase tracking-[.2em] text-emerald-800">
-            Quản lý quán
-          </p>
-          <h1 className="text-3xl font-bold tracking-tight">
+          <h1>
             {section === 'menu'
               ? 'Thực đơn'
               : section === 'staff'
                 ? 'Nhân viên'
                 : 'Cài đặt quán'}
           </h1>
-          <p className="mt-2 text-sm text-stone-500">
-            {section === 'menu'
-              ? 'Chăm chút từng món, sẵn sàng cho mỗi ca bán.'
-              : section === 'staff'
-                ? 'Quản lý quyền truy cập và tài khoản tại quầy.'
-                : 'Thông tin quán, chuyển khoản và mẫu hóa đơn.'}
-          </p>
         </div>
         {section !== 'settings' && (
           <Button onClick={() => edit()}>
@@ -533,7 +523,7 @@ export function AdminWorkspace({
       ) : (
         <>
           <div
-            className="flex flex-wrap gap-2 border-b border-stone-200 pb-3"
+            className="underline-tabs"
             role="tablist"
             aria-label="Nhóm quản lý"
           >
@@ -542,12 +532,7 @@ export function AdminWorkspace({
                 role="tab"
                 aria-selected={resource === key}
                 key={key}
-                className={
-                  'min-h-12 rounded-xl px-5 font-semibold ' +
-                  (resource === key
-                    ? 'bg-emerald-800 text-white'
-                    : 'bg-white text-stone-600')
-                }
+                className="min-h-10 px-1 text-sm font-medium"
                 onClick={() => {
                   setResource(key);
                   setQuery('');
@@ -575,7 +560,7 @@ export function AdminWorkspace({
             {resource === 'products' && (
               <select
                 aria-label="Lọc danh mục"
-                className="min-h-12 rounded-xl border border-stone-300 bg-white px-4"
+                className="min-h-10 rounded-md border border-stone-300 bg-white px-3 text-sm"
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
               >
@@ -593,149 +578,163 @@ export function AdminWorkspace({
               {error}
             </p>
           )}
-          <div
-            className={
-              'grid gap-4 ' +
-              (resource === 'products' ? 'lg:grid-cols-2' : 'sm:grid-cols-2')
-            }
-          >
-            {filtered.map((row) => (
-              <article
-                key={row.id}
-                className="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex gap-3">
-                    {resource === 'products' && (
-                      <div
-                        className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-amber-50 bg-cover bg-center text-2xl"
-                        style={
-                          row.imageUrl
-                            ? {
-                                backgroundImage:
-                                  'url(' + JSON.stringify(row.imageUrl) + ')',
-                              }
-                            : undefined
-                        }
-                      >
-                        {!row.imageUrl && (
-                          <Coffee size={28} aria-hidden="true" />
-                        )}
-                      </div>
-                    )}
-                    <div>
-                      <h2 className="text-lg font-bold">{row.name}</h2>
-                      <p className="mt-1 text-sm text-stone-500">
-                        {resource === 'products'
-                          ? categories.find((c) => c.id === row.categoryId)
-                              ?.name
-                          : resource === 'users'
-                            ? row.role === 'OWNER'
-                              ? 'Chủ quán'
-                              : 'Thu ngân'
-                            : resource === 'categories'
-                              ? 'Thứ tự: ' +
-                                row.sortOrder +
-                                (row.isActive
-                                  ? ' · Đang hiển thị'
-                                  : ' · Đã ẩn khỏi quầy')
-                              : formatPrice(row.price)}
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    className="min-h-12 rounded-lg px-3 font-semibold text-emerald-800 hover:bg-emerald-50"
-                    onClick={() => edit(row)}
-                  >
-                    Sửa
-                  </button>
-                </div>
-                {resource === 'products' && (
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {((row.variants ?? []) as { name: string; price: number }[])
-                      .slice()
-                      .sort(
-                        (a, b) =>
-                          ['S', 'M', 'L'].indexOf(a.name) -
-                          ['S', 'M', 'L'].indexOf(b.name),
-                      )
-                      .map((variant) => (
-                        <span
-                          className="rounded-lg bg-stone-100 px-3 py-2 text-sm"
-                          key={variant.name}
-                        >
-                          <b className="mr-2 text-stone-500">{variant.name}</b>
-                          {formatPrice(variant.price)}
-                        </span>
-                      ))}
-                  </div>
-                )}
-                {resource === 'users' && (
-                  <p className="mt-3 break-all text-sm text-stone-500">
-                    {String(row.email ?? 'Chưa có email')} ·{' '}
-                    {row.isActive ? 'Đang hoạt động' : 'Đã ngừng hoạt động'}
-                  </p>
-                )}
-                <div className="mt-4 flex items-center justify-between border-t border-stone-100 pt-3">
-                  {resource === 'products' || resource === 'toppings' ? (
-                    <button
-                      disabled={busy}
-                      aria-label={
-                        (row.isAvailable ? 'Đánh dấu hết hàng ' : 'Mở bán ') +
-                        row.name
-                      }
-                      onClick={() =>
-                        mutate('PATCH', {
-                          id: row.id,
-                          isAvailable: !row.isAvailable,
-                        })
-                      }
-                      className={
-                        'min-h-12 rounded-xl px-4 text-sm font-semibold ' +
-                        (row.isAvailable
-                          ? 'bg-emerald-50 text-emerald-800'
-                          : 'bg-amber-100 text-amber-900')
-                      }
-                    >
-                      {row.isAvailable ? (
-                        <CircleCheck
-                          size={16}
-                          className="mr-2 inline"
-                          aria-hidden="true"
-                        />
-                      ) : (
-                        <Circle
-                          size={16}
-                          className="mr-2 inline"
-                          aria-hidden="true"
+          <div className="admin-list-scroll">
+            <div className="admin-list">
+              <div className="admin-list-heading" aria-hidden="true">
+                <span>Tên / Danh mục</span>
+                <span>
+                  {resource === 'products'
+                    ? 'Kích cỡ · Giá bán'
+                    : resource === 'users'
+                      ? 'Email'
+                      : 'Thông tin'}
+                </span>
+                <span>Trạng thái / Thao tác</span>
+              </div>
+              {filtered.map((row) => (
+                <article key={row.id} className="admin-row">
+                  <div className="admin-identity">
+                    <div className="flex gap-3">
+                      {resource === 'products' && !!row.imageUrl && (
+                        <div
+                          className="h-9 w-9 shrink-0 rounded-md bg-cover bg-center"
+                          style={
+                            row.imageUrl
+                              ? {
+                                  backgroundImage:
+                                    'url(' + JSON.stringify(row.imageUrl) + ')',
+                                }
+                              : undefined
+                          }
                         />
                       )}
-                      {row.isAvailable ? 'Đang bán' : 'Hết hàng'}
-                    </button>
-                  ) : (
-                    <span className="text-xs text-stone-400">
-                      {resource === 'users'
-                        ? 'PIN được bảo mật'
-                        : 'Hiển thị theo thứ tự tăng dần'}
-                    </span>
-                  )}
-                  <button
-                    disabled={busy}
-                    className="min-h-12 px-3 text-sm text-red-700"
-                    onClick={() => {
-                      if (
-                        window.confirm(
-                          'Xóa ' + row.name + '? Thao tác không thể hoàn tác.',
+                      <div>
+                        <h2 className="text-sm font-semibold">{row.name}</h2>
+                        <p className="mt-1 text-xs text-stone-500">
+                          {resource === 'products'
+                            ? categories.find((c) => c.id === row.categoryId)
+                                ?.name
+                            : resource === 'users'
+                              ? row.role === 'OWNER'
+                                ? 'Chủ quán'
+                                : 'Thu ngân'
+                              : null}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="admin-row-prices">
+                    {resource === 'products' ? (
+                      <>
+                        {(
+                          (row.variants ?? []) as {
+                            name: string;
+                            price: number;
+                          }[]
                         )
-                      )
-                        void mutate('DELETE', { id: row.id });
-                    }}
-                  >
-                    Xóa
-                  </button>
-                </div>
-              </article>
-            ))}
+                          .slice()
+                          .sort(
+                            (a, b) =>
+                              ['S', 'M', 'L'].indexOf(a.name) -
+                              ['S', 'M', 'L'].indexOf(b.name),
+                          )
+                          .map((variant) => (
+                            <span
+                              className="text-xs whitespace-nowrap"
+                              key={variant.name}
+                            >
+                              <b className="mr-2 font-normal text-stone-500">
+                                {variant.name}
+                              </b>
+                              {formatPrice(variant.price)}
+                            </span>
+                          ))}
+                      </>
+                    ) : resource === 'users' ? (
+                      <span className="break-all text-xs text-stone-500">
+                        {String(row.email ?? 'Chưa có email')}
+                      </span>
+                    ) : resource === 'categories' ? (
+                      <span className="text-xs text-stone-500">
+                        Thứ tự: {String(row.sortOrder)}
+                      </span>
+                    ) : (
+                      <span className="text-sm">{formatPrice(row.price)}</span>
+                    )}
+                  </div>
+                  <div className="admin-row-actions">
+                    {resource === 'products' || resource === 'toppings' ? (
+                      <button
+                        disabled={busy}
+                        aria-label={
+                          (row.isAvailable ? 'Đánh dấu hết hàng ' : 'Mở bán ') +
+                          row.name
+                        }
+                        onClick={() =>
+                          mutate('PATCH', {
+                            id: row.id,
+                            isAvailable: !row.isAvailable,
+                          })
+                        }
+                        className={
+                          'mr-auto min-h-10 text-xs font-medium ' +
+                          (row.isAvailable
+                            ? 'text-emerald-800'
+                            : 'text-amber-800')
+                        }
+                      >
+                        {row.isAvailable ? (
+                          <CircleCheck
+                            size={16}
+                            className="mr-2 inline"
+                            aria-hidden="true"
+                          />
+                        ) : (
+                          <Circle
+                            size={16}
+                            className="mr-2 inline"
+                            aria-hidden="true"
+                          />
+                        )}
+                        {row.isAvailable ? 'Đang bán' : 'Hết hàng'}
+                      </button>
+                    ) : (
+                      <span className="mr-auto text-xs text-stone-500">
+                        {resource === 'users'
+                          ? row.isActive
+                            ? 'Đang hoạt động'
+                            : 'Đã ngừng hoạt động'
+                          : row.isActive
+                            ? 'Đang hiển thị'
+                            : 'Đã ẩn khỏi quầy'}
+                      </span>
+                    )}
+                    <button
+                      className="min-h-10 px-2 text-xs font-medium text-emerald-800 hover:bg-stone-50"
+                      onClick={() => edit(row)}
+                    >
+                      Sửa
+                    </button>
+                    <button
+                      disabled={busy}
+                      className="min-h-10 px-2 text-xs text-red-700"
+                      onClick={() => {
+                        if (
+                          window.confirm(
+                            'Xóa ' +
+                              row.name +
+                              '? Thao tác không thể hoàn tác.',
+                          )
+                        )
+                          void mutate('DELETE', { id: row.id });
+                      }}
+                    >
+                      Xóa
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
           </div>
           {!filtered.length && (
             <div className="rounded-2xl border border-dashed border-stone-300 p-12 text-center text-stone-500">
@@ -744,13 +743,13 @@ export function AdminWorkspace({
           )}
           {open && (
             <div
-              className="fixed inset-0 z-50 flex items-center justify-center bg-stone-950/40 p-3"
+              className="fixed inset-0 z-50 flex items-stretch justify-end bg-stone-950/40"
               role="dialog"
               aria-modal="true"
               aria-labelledby="editor-title"
             >
-              <section className="max-h-[94dvh] w-full max-w-xl overflow-y-auto rounded-2xl bg-white px-6 pt-6 shadow-xl">
-                <h2 id="editor-title" className="mb-6 text-2xl font-bold">
+              <section className="h-dvh w-full max-w-lg overflow-y-auto border-l border-stone-200 bg-white px-6 pt-5">
+                <h2 id="editor-title" className="mb-5 text-lg font-semibold">
                   {editing ? 'Chỉnh sửa' : 'Thêm'} {singular[resource]}
                 </h2>
                 {form}
