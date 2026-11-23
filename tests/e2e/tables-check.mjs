@@ -362,7 +362,7 @@ try {
   await expect(
     page
       .getByTestId('order-' + order.id)
-      .getByRole('link', { name: 'In bill', exact: true }),
+      .getByRole('link', { name: 'In hóa đơn', exact: true }),
   ).toBeVisible();
   await page
     .getByRole('button', { name: 'Đã thanh toán', exact: true })

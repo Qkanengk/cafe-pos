@@ -295,7 +295,7 @@ try {
       '; idempotent order/payment; pending-order close blocked',
   );
   const printPromise = page.waitForEvent('popup');
-  await page.getByRole('link', { name: 'In bill', exact: true }).click();
+  await page.getByRole('link', { name: 'In hóa đơn', exact: true }).click();
   const receipt = await printPromise;
   await receipt.waitForLoadState();
   await expect(receipt.getByTestId('receipt-total')).toHaveText(fmt(total));
@@ -397,7 +397,7 @@ try {
   );
   await page.getByRole('link', { name: 'Đơn hàng', exact: true }).click();
   await expect(
-    page.getByRole('link', { name: 'In bill', exact: true }).first(),
+    page.getByRole('link', { name: 'In hóa đơn', exact: true }).first(),
   ).toBeVisible();
   await svgCheck(page);
   await page.getByRole('link', { name: 'Ca làm việc', exact: true }).click();

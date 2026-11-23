@@ -17,7 +17,7 @@ export function PrintLinks({
           className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-emerald-800 px-4 py-3 font-semibold text-white"
         >
           <Printer size={20} aria-hidden="true" />
-          In bill
+          In hóa đơn
         </Link>
       )}
       <Link
