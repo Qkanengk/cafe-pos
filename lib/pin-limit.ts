@@ -1,6 +1,7 @@
 type Bucket = { count: number; until: number };
 export class PinLimiter {
   private buckets = new Map<string, Bucket>();
+  constructor(private readonly capacity = 10000) {}
   reserve(users: string[], ip: string) {
     const now = Date.now();
     for (const [key, bucket] of this.buckets)
@@ -8,11 +9,6 @@ export class PinLimiter {
     const userKeys = users.map((id) => 'user:' + id),
       ipKey = 'ip:' + ip;
     const keys = [...new Set([...userKeys, ipKey])];
-    if (
-      this.buckets.size + keys.filter((k) => !this.buckets.has(k)).length >
-      10000
-    )
-      return null;
     if (
       keys.some(
         (k) => (this.buckets.get(k)?.count ?? 0) >= (k === ipKey ? 20 : 5),
@@ -25,6 +21,12 @@ export class PinLimiter {
         until: now + 15 * 60 * 1000,
       };
       bucket.count++;
+      this.buckets.delete(key);
+      while (this.buckets.size >= this.capacity) {
+        const oldest = this.buckets.keys().next().value;
+        if (oldest === undefined) break;
+        this.buckets.delete(oldest);
+      }
       this.buckets.set(key, bucket);
       return { key, bucket };
     });
@@ -43,7 +45,8 @@ export class PinLimiter {
 export const pinLimiter = new PinLimiter();
 export const pinLockMessage =
   'Thử PIN quá nhiều lần. Vui lòng chờ 15 phút rồi thử lại.';
-export function clientIP(headers: Headers) {
+export function clientIP(headers: Headers, socketAddress?: string) {
+  if (process.env.TRUST_PROXY !== 'true') return socketAddress || 'direct';
   return (
     headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
     headers.get('x-real-ip') ||

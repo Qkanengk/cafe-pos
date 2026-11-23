@@ -98,6 +98,8 @@ Compose mặc định không public cổng database; hostname `db` chỉ dành c
 
 ## Biến môi trường
 
+Giới hạn PIN bỏ qua header IP do trình duyệt gửi khi chạy trực tiếp. Next.js App Router không cung cấp socket IP nên mặc định các yêu cầu trực tiếp dùng chung nhóm giới hạn IP (vẫn có giới hạn riêng từng tài khoản). Chỉ đặt `TRUST_PROXY=true` sau reverse proxy tin cậy đã ghi đè `X-Forwarded-For` và chặn truy cập trực tiếp tới app; khi đó dùng IP do proxy cung cấp. Không bật tùy chọn này trên cổng mở trực tiếp.
+
 | Biến               | Ý nghĩa                                                                                                                                                                                                   |
 | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `DATABASE_URL`     | Prisma/pg; Compose đặt `postgresql://cafe:cafe@db:5432/cafe?schema=public`. Dev/CI dùng host/port truy cập được từ Node. CLI Prisma cần export biến; `.env.example` có ví dụ loopback.                    |

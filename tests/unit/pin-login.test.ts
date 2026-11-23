@@ -3,9 +3,12 @@ const mocks = vi.hoisted(() => ({ findUnique: vi.fn(), compare: vi.fn() }));
 vi.mock('../../lib/db', () => ({
   db: { user: { findUnique: mocks.findUnique } },
 }));
-vi.mock('bcryptjs', () => ({ compare: mocks.compare }));
+vi.mock('bcryptjs', () => ({
+  compare: mocks.compare,
+  hashSync: () => 'dummy-hash',
+}));
 import { authenticateLogin } from '../../lib/login';
-import { PinLimiter, pinLimiter } from '../../lib/pin-limit';
+import { PinLimiter, pinLimiter, clientIP } from '../../lib/pin-limit';
 beforeEach(() => {
   vi.resetAllMocks();
   pinLimiter.clear();
@@ -66,7 +69,7 @@ describe('PIN protection', () => {
     expect(
       await authenticateLogin({ mode: 'pin', userId: 'u', pin: '1111' }, 'a'),
     ).toBeNull();
-    expect(mocks.compare).not.toHaveBeenCalled();
+    expect(mocks.compare).toHaveBeenCalledWith('1111', 'dummy-hash');
     expect(
       await authenticateLogin(
         { mode: 'password', email: 'owner@cafe.local', password: 'owner123' },
@@ -90,6 +93,37 @@ describe('PIN protection', () => {
         'a',
       ),
     ).toBeNull();
-    expect(mocks.compare).not.toHaveBeenCalled();
+    expect(mocks.compare).toHaveBeenCalledTimes(2);
+  });
+  it('does not allocate limiter entries for made-up accounts', async () => {
+    mocks.findUnique.mockResolvedValue(null);
+    const reserve = vi.spyOn(pinLimiter, 'reserve');
+    for (let i = 0; i < 30; i++)
+      expect(
+        await authenticateLogin(
+          { mode: 'pin', userId: 'unknown-' + i, pin: '0000' },
+          'a',
+        ),
+      ).toBeNull();
+    expect(reserve).not.toHaveBeenCalled();
+    reserve.mockRestore();
+    expect(mocks.compare).toHaveBeenCalledTimes(30);
+  });
+  it('evicts old buckets instead of blocking unrelated users when capacity is reached', () => {
+    const limiter = new PinLimiter(4);
+    for (let i = 0; i < 20; i++)
+      expect(limiter.reserve(['u' + i], 'ip' + i)).toBeTypeOf('function');
+  });
+  it('ignores spoofable IP headers unless a trusted proxy is explicitly configured', () => {
+    const headers = new Headers({
+      'x-forwarded-for': '8.8.8.8, 10.0.0.1',
+      'x-real-ip': '1.1.1.1',
+    });
+    vi.stubEnv('TRUST_PROXY', '');
+    expect(clientIP(headers)).toBe('direct');
+    expect(clientIP(headers, '127.0.0.1')).toBe('127.0.0.1');
+    vi.stubEnv('TRUST_PROXY', 'true');
+    expect(clientIP(headers)).toBe('8.8.8.8');
+    vi.unstubAllEnvs();
   });
 });

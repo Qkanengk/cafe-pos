@@ -1,21 +1,25 @@
-import { compare } from 'bcryptjs';
+import { compare, hashSync } from 'bcryptjs';
 import { db } from './db';
 import { HttpError } from './api';
 import { pinLimiter, pinLockMessage } from './pin-limit';
 type Credentials =
   | { mode: 'pin'; userId: string; pin: string }
   | { mode: 'password'; email: string; password: string };
+const fakePinHash = hashSync('not-a-real-account', 10);
 export async function authenticateLogin(data: Credentials, ip: string) {
-  const success =
-    data.mode === 'pin' ? pinLimiter.reserve([data.userId], ip) : undefined;
-  if (success === null) throw new HttpError(pinLockMessage, 429);
   const user = await db.user.findUnique({
     where:
       data.mode === 'pin'
         ? { id: data.userId }
         : { email: data.email.toLowerCase() },
   });
-  if (!user?.isActive) return null;
+  if (!user?.isActive || (data.mode === 'pin' && user.role !== 'CASHIER')) {
+    if (data.mode === 'pin') await compare(data.pin, fakePinHash);
+    return null;
+  }
+  const success =
+    data.mode === 'pin' ? pinLimiter.reserve([user.id], ip) : undefined;
+  if (success === null) throw new HttpError(pinLockMessage, 429);
   const valid =
     data.mode === 'pin'
       ? user.role === 'CASHIER' && (await compare(data.pin, user.pinHash))
