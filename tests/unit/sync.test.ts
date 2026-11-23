@@ -110,6 +110,34 @@ beforeEach(() => {
   mocks.db.orderItem.create.mockResolvedValue({ id: 'item' });
 });
 describe('offline sync transaction', () => {
+  it('rejects an add-on outside the signed product allowlist', async () => {
+    const payload = entry();
+    payload.catalogToken = signCatalog({
+      ...catalog,
+      products: catalog.products.map((product) => ({
+        ...product,
+        toppings: [],
+      })),
+    });
+    await expect(syncOrder(actor, payload)).rejects.toThrow(
+      'Topping không dùng cho món này',
+    );
+    expect(mocks.db.order.create).not.toHaveBeenCalled();
+  });
+  it('accepts a product configured with no toppings when none were selected', async () => {
+    const payload = entry();
+    payload.order.lines[0].toppingIds = [];
+    payload.catalogToken = signCatalog({
+      ...catalog,
+      products: catalog.products.map((product) => ({
+        ...product,
+        toppings: [],
+      })),
+    });
+    await expect(syncOrder(actor, payload)).resolves.toMatchObject({
+      id: payload.order.id,
+    });
+  });
   it('promotes only an untouched same-UUID checkout after its response was lost', async () => {
     const input = entry();
     mocks.db.order.findUnique.mockResolvedValueOnce({

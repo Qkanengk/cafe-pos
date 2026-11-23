@@ -197,7 +197,7 @@ try {
   await call(owner, 'users', 'PUT', {
     ...staffData,
     id: staff.id,
-    pin: '',
+    pin: '6543',
     isActive: true,
   });
   assert.equal(

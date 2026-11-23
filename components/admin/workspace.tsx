@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { MoneyInput } from '@/components/ui/money-input';
 import { adminSchemas, banks, type Resource } from '@/lib/admin-validation';
-import { posFetch } from '@/lib/pos-fetch';
+import { posFetch, RequestTimeoutError } from '@/lib/pos-fetch';
 
 type Row = { id: string; name: string; [key: string]: unknown };
 type Data = Partial<Record<Resource, Row[]>>;
@@ -239,7 +239,13 @@ export function AdminWorkspace({
       );
       if (section !== 'settings') setOpen(false);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Không thể kết nối máy chủ.');
+      setError(
+        e instanceof RequestTimeoutError
+          ? 'Máy chủ không phản hồi sau 12 giây. Thay đổi có thể đã được lưu; hãy tải lại danh sách để kiểm tra trước khi lưu lại, tránh tạo bản ghi trùng.'
+          : e instanceof Error
+            ? e.message
+            : 'Không thể kết nối máy chủ.',
+      );
     } finally {
       setBusy(false);
     }
