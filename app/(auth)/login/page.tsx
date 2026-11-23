@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 export default async function LoginPage() {
   const store = await db.store.findFirst({ select: { name: true } });
   const users = await db.user.findMany({
-    where: { isActive: true },
+    where: { isActive: true, role: 'CASHIER' },
     select: { id: true, name: true },
     orderBy: { name: 'asc' },
   });

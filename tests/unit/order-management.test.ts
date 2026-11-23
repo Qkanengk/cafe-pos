@@ -36,6 +36,7 @@ import {
   checkVersion,
 } from '../../lib/order-management';
 import { checkoutSchema } from '../../lib/sales-validation';
+import { pinLimiter } from '../../lib/pin-limit';
 const id = '7ff9e456-8548-4f88-9c18-1d2b655de2ce';
 const itemId = '8ff9e456-8548-4f88-9c18-1d2b655de2ce';
 const otherItemId = '9ff9e456-8548-4f88-9c18-1d2b655de2ce';
@@ -93,6 +94,7 @@ function fixture() {
 }
 let state = fixture();
 beforeEach(() => {
+  pinLimiter.clear();
   vi.resetAllMocks();
   state = fixture();
   mocks.db.$transaction.mockImplementation(async (fn) => fn(mocks.db));
@@ -135,6 +137,27 @@ beforeEach(() => {
   mocks.db.orderItem.create.mockResolvedValue({ id: 'new-item' });
 });
 describe('held order transactions', () => {
+  it('shares owner PIN lockout across void/cancel and IP changes', async () => {
+    for (let i = 0; i < 5; i++)
+      await expect(
+        operateOrder({ ...actor, ip: 'a' }, id, {
+          action: 'CANCEL',
+          version: 1,
+          ownerPin: '9999',
+          reason: 'test',
+        }),
+      ).rejects.toMatchObject({ status: 403 });
+    await expect(
+      operateOrder({ ...actor, ip: 'b' }, id, {
+        action: 'VOID',
+        version: 1,
+        itemId,
+        ownerPin: '1111',
+        reason: 'test',
+      }),
+    ).rejects.toMatchObject({ status: 429 });
+    expect(mocks.db.orderItem.updateMany).not.toHaveBeenCalled();
+  });
   it('rejects stale versions before writing', async () => {
     expect(() => checkVersion(2, 1)).toThrow('tải lại');
     await expect(

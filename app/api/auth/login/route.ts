@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { compare } from 'bcryptjs';
 import { z } from 'zod';
-import { db } from '@/lib/db';
+import { authenticateLogin } from '@/lib/login';
+import { clientIP } from '@/lib/pin-limit';
+import { apiError } from '@/lib/api';
 import { COOKIE_NAME, signSession } from '@/lib/session';
 import { validOrigin } from '@/lib/request-origin';
 const schema = z.discriminatedUnion('mode', [
@@ -29,21 +30,13 @@ export async function POST(request: NextRequest) {
       { status: 400 },
     );
   const data = body.data;
-  const user = await db.user.findUnique({
-    where:
-      data.mode === 'pin'
-        ? { id: data.userId }
-        : { email: data.email.toLowerCase() },
-  });
-  const valid =
-    user &&
-    user.isActive &&
-    (data.mode === 'pin'
-      ? await compare(data.pin, user.pinHash)
-      : user.role === 'OWNER' &&
-        user.passwordHash &&
-        (await compare(data.password, user.passwordHash)));
-  if (!valid || !user)
+  let user;
+  try {
+    user = await authenticateLogin(data, clientIP(request.headers));
+  } catch (error) {
+    return apiError(error);
+  }
+  if (!user)
     return NextResponse.json(
       { error: 'Tên đăng nhập hoặc mã bí mật không đúng' },
       { status: 401 },

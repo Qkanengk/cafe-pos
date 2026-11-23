@@ -3,12 +3,13 @@ import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { db } from './db';
 import { HttpError } from './api';
+import { pinLimiter, pinLockMessage } from './pin-limit';
 import { lockStore, nextOrderCode, orderInclude } from './sales';
 import { editOrderSchema, operationSchema } from './sales-validation';
 import { cartTotal, discountAmount, allocateDiscount, sumMoney } from './money';
 
 type Tx = Prisma.TransactionClient;
-type Actor = { id: string; storeId: string };
+type Actor = { id: string; storeId: string; ip?: string };
 type Order = Prisma.OrderGetPayload<{ include: typeof orderInclude }>;
 export const conflict =
   'Đơn đã được thay đổi trên thiết bị khác. Vui lòng tải lại đơn.';
@@ -227,6 +228,11 @@ export async function operateOrder(
         where: { storeId: actor.storeId, role: 'OWNER', isActive: true },
         select: { id: true, pinHash: true },
       });
+      const success = pinLimiter.reserve(
+        owners.map((owner) => owner.id),
+        actor.ip ?? 'local',
+      );
+      if (!success) throw new HttpError(pinLockMessage, 429);
       let ownerId: string | undefined;
       for (const owner of owners)
         if (await compare(input.ownerPin, owner.pinHash)) {
@@ -234,6 +240,7 @@ export async function operateOrder(
           break;
         }
       if (!ownerId) throw new HttpError('PIN chủ quán không đúng', 403);
+      success();
       if (input.action === 'VOID') {
         const item = order.items.find(
           (i) => i.id === input.itemId && i.status === 'ACTIVE',

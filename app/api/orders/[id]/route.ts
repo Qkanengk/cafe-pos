@@ -5,6 +5,7 @@ import { db } from '@/lib/db';
 import { orderInclude } from '@/lib/sales';
 import { editOrderSchema, operationSchema } from '@/lib/sales-validation';
 import { editOrder, operateOrder } from '@/lib/order-management';
+import { clientIP } from '@/lib/pin-limit';
 type Context = { params: Promise<{ id: string }> };
 export async function GET(request: NextRequest, { params }: Context) {
   try {
@@ -42,7 +43,7 @@ export async function POST(request: NextRequest, { params }: Context) {
     const id = z.uuid().parse((await params).id);
     return NextResponse.json(
       await operateOrder(
-        user,
+        { ...user, ip: clientIP(request.headers) },
         id,
         operationSchema.parse(await request.json().catch(() => null)),
       ),
