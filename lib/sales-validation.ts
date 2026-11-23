@@ -60,6 +60,12 @@ export const paymentSchema = z.discriminatedUnion('method', [
   }),
 ]);
 export const versionSchema = z.number().int().positive();
+export const voidReasonPresets = [
+  'Hết hàng',
+  'Khách đổi ý',
+  'Nhập nhầm món',
+  'Chất lượng không đạt',
+] as const;
 export const editOrderSchema = z.object({
   version: versionSchema,
   order: checkoutSchema,

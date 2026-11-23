@@ -1,4 +1,24 @@
 import { describe, it, expect } from 'vitest';
+import { voidReasonPresets, operationSchema } from '../../lib/sales-validation';
+it('accepts quick void/cancel reasons and still requires a nonempty reason', () => {
+  for (const reason of voidReasonPresets)
+    expect(
+      operationSchema.safeParse({
+        action: 'CANCEL',
+        version: 1,
+        reason,
+        ownerPin: '1111',
+      }).success,
+    ).toBe(true);
+  expect(
+    operationSchema.safeParse({
+      action: 'CANCEL',
+      version: 1,
+      reason: '',
+      ownerPin: '1111',
+    }).success,
+  ).toBe(false);
+});
 import {
   checkoutSchema,
   paymentSchema,

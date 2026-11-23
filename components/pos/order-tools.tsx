@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import type { SaleOrder } from '@/lib/sales-types';
 import { formatVnd } from '@/lib/money';
 import { posFetch } from '@/lib/pos-fetch';
+import { voidReasonPresets } from '@/lib/sales-validation';
 type Table = { id: string; name: string; area: string };
 type Action = 'SPLIT' | 'MERGE' | 'MOVE' | 'VOID' | 'CANCEL';
 const labels = {
@@ -158,6 +159,20 @@ export function OrderTools({
                 )}
                 <label className="block space-y-2">
                   <span>Lý do</span>
+                  <span className="flex flex-wrap gap-2">
+                    {voidReasonPresets.map((value) => (
+                      <button
+                        key={value}
+                        type="button"
+                        disabled={busy}
+                        aria-pressed={reason === value}
+                        className="min-h-11 rounded-lg border px-3"
+                        onClick={() => setReason(value)}
+                      >
+                        {value}
+                      </button>
+                    ))}
+                  </span>
                   <Input
                     aria-label="Lý do"
                     maxLength={300}
