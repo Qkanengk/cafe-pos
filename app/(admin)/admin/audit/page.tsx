@@ -1,5 +1,10 @@
 import { requireUser } from '@/lib/auth';
 import { loadAudit } from '@/lib/audit';
+import {
+  auditActionLabel,
+  auditEntityLabel,
+  auditDescription,
+} from '@/lib/audit-labels';
 export default async function Page({
   searchParams,
 }: {
@@ -66,7 +71,9 @@ export default async function Page({
           >
             <option value="">Tất cả</option>
             {result.actions.map((action) => (
-              <option key={action}>{action}</option>
+              <option key={action} value={action}>
+                {auditActionLabel(action)}
+              </option>
             ))}
           </select>
         </label>
@@ -89,14 +96,19 @@ export default async function Page({
             · <strong>{entry.user.name}</strong>
           </p>
           <p>
-            {entry.action} · {entry.entity} · {entry.entityId}
+            {auditActionLabel(entry.action)} · {auditEntityLabel(entry.entity)}
           </p>
-          <details>
-            <summary className="cursor-pointer py-2">Chi tiết</summary>
-            <pre className="whitespace-pre-wrap break-all rounded-lg bg-stone-50 p-3 text-sm">
-              {JSON.stringify(entry.data, null, 2)}
-            </pre>
-          </details>
+          <p className="text-sm text-stone-600">
+            {auditDescription(entry.data)}
+          </p>
+          {entry.entity === 'orders' && (
+            <a
+              className="text-sm underline"
+              href={'/pos?orderId=' + entry.entityId}
+            >
+              Xem đơn hàng
+            </a>
+          )}
         </article>
       ))}
       <nav className="flex gap-5">
