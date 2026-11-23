@@ -282,7 +282,10 @@ try {
   });
   await page.goto('/admin/audit?action=REFUND');
   await expect(
-    page.getByText('Hoàn phần còn lại', { exact: false }),
+    page
+      .locator('article')
+      .filter({ has: page.locator('a[href="/pos?orderId=' + order.id + '"]') })
+      .filter({ hasText: 'Hoàn phần còn lại' }),
   ).toBeVisible();
   assert.ok(!(await page.locator('body').innerText()).includes('REFUND'));
   assert.ok(!(await page.locator('body').innerText()).includes('1111'));
