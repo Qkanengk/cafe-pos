@@ -65,6 +65,7 @@ export function OfflineWorkspace() {
         <Tables tables={snapshot.tables} offline />
       ) : (
         <Terminal
+          actorId={snapshot.user.id}
           products={snapshot.products}
           categories={snapshot.categories}
           toppings={snapshot.toppings}

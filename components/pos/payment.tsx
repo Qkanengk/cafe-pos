@@ -22,11 +22,13 @@ export function PaymentDialog({
   bank,
   onPaid,
   onClose,
+  paymentId,
 }: {
   order: SaleOrder;
   bank: BankDetails;
   onPaid: (order: SaleOrder) => void;
   onClose: () => void;
+  paymentId: string;
 }) {
   const [method, setMethod] = useState<'CASH' | 'BANK_TRANSFER'>('CASH');
   const [received, setReceived] = useState('');
@@ -34,7 +36,6 @@ export function PaymentDialog({
   const [qr, setQr] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [paymentId] = useState(() => crypto.randomUUID());
   const [existingPaid, setExistingPaid] = useState<SaleOrder | null>(null);
   useEffect(() => {
     if (method !== 'BANK_TRANSFER') return;

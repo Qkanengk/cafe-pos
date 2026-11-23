@@ -23,6 +23,11 @@ import { checkoutWithFallback } from '@/lib/checkout-client';
 import { posFetch } from '@/lib/pos-fetch';
 import { serialPoll, orderViewChanged } from '@/lib/live-state';
 import {
+  readWorkingCart,
+  saveWorkingCart,
+  clearWorkingCart,
+} from '@/lib/cart-storage';
+import {
   orderLines,
   reapplyPending,
   orderCompletionMessage,
@@ -46,6 +51,7 @@ import type {
 } from '@/lib/sales-types';
 
 type Props = {
+  actorId: string;
   products: MenuProduct[];
   categories: { id: string; name: string }[];
   toppings: MenuTopping[];
@@ -64,6 +70,7 @@ const quickNotes = [
   'mang ly riêng',
 ];
 export function Terminal({
+  actorId,
   products,
   categories,
   toppings,
@@ -76,6 +83,12 @@ export function Terminal({
 }: Props) {
   const [lines, setLines] = useState<Line[]>(() => orderLines(initialOrder));
   const [id, setId] = useState(() => initialOrder?.id ?? crypto.randomUUID());
+  const [paymentId, setPaymentId] = useState(() => crypto.randomUUID());
+  const [cartScope, setCartScope] = useState(
+    initialOrder?.id ?? (initialTableId ? 'table:' + initialTableId : 'new'),
+  );
+  const [cartReady, setCartReady] = useState(false);
+  const [storageError, setStorageError] = useState('');
   const [category, setCategory] = useState('');
   const [query, setQuery] = useState('');
   const [type, setType] = useState<'TAKEAWAY' | 'DINE_IN'>(
@@ -120,6 +133,120 @@ export function Terminal({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  useEffect(() => {
+    let active = true;
+    void Promise.resolve()
+      .then(() => {
+        const saved = readWorkingCart(
+          actorId,
+          initialOrder?.id ??
+            (initialTableId ? 'table:' + initialTableId : 'new'),
+        );
+        if (!active) return;
+        if (saved) {
+          setLines(saved.lines);
+          setId(saved.id);
+          setPaymentId(saved.paymentId);
+          setType(saved.type);
+          setTableId(saved.tableId);
+          setDiscountType(saved.discountType);
+          setDiscountValue(saved.discountValue);
+          setPrepared(saved.prepared);
+          setNotice(
+            'Đã khôi phục giỏ đang nhập trên thiết bị. Kiểm tra trước khi tiếp tục.',
+          );
+        }
+      })
+      .catch(() => {
+        if (active)
+          setStorageError(
+            'Không thể đọc giỏ đã lưu. Bản lưu chưa bị ghi đè; kiểm tra quyền lưu trữ hoặc chủ động bỏ giỏ.',
+          );
+      })
+      .finally(() => {
+        if (active) setCartReady(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, [actorId, initialOrder?.id, initialTableId]);
+  useEffect(() => {
+    if (
+      !cartReady ||
+      storageError ||
+      (!lines.length &&
+        !prepared &&
+        type === 'TAKEAWAY' &&
+        discountValue === '0')
+    )
+      return;
+    let active = true;
+    void Promise.resolve()
+      .then(() => {
+        if (active)
+          saveWorkingCart(actorId, cartScope, {
+            version: 1,
+            id,
+            paymentId,
+            lines,
+            type,
+            tableId,
+            discountType,
+            discountValue,
+            prepared,
+          });
+      })
+      .catch(() => {
+        if (active)
+          setStorageError(
+            'Không thể lưu giỏ trên thiết bị. Giỏ vẫn trên màn hình; kiểm tra dung lượng/quyền lưu trữ trước khi tải lại.',
+          );
+      });
+    return () => {
+      active = false;
+    };
+  }, [
+    actorId,
+    cartScope,
+    cartReady,
+    storageError,
+    id,
+    paymentId,
+    lines,
+    type,
+    tableId,
+    discountType,
+    discountValue,
+    prepared,
+  ]);
+  function discardCart() {
+    if (
+      !window.confirm(
+        'Bỏ giỏ đang nhập trên thiết bị? Đơn đã giữ trên máy chủ/thiết bị không bị hủy; vẫn tìm được trong Đơn hàng.',
+      )
+    )
+      return;
+    try {
+      clearWorkingCart(actorId, cartScope, storageError ? undefined : id);
+      setStorageError('');
+    } catch {
+      setStorageError('Không thể xóa bản lưu. Kiểm tra quyền lưu trữ.');
+      return;
+    }
+    setCartScope('new');
+    setPrepared(null);
+    setLines([]);
+    setId(crypto.randomUUID());
+    setPaymentId(crypto.randomUUID());
+    setType('TAKEAWAY');
+    setTableId('');
+    setDiscountType('PERCENT');
+    setDiscountValue('0');
+    setPaymentOpen(false);
+    setPaid(null);
+    setNotice('Đã bỏ giỏ đang nhập. Đơn đã giữ vẫn còn trong Đơn hàng.');
+    window.history.replaceState(null, '', '/pos');
+  }
   const [recovery, setRecovery] = useState<SaleOrder | null>(null);
   const [stale, setStale] = useState('');
   useEffect(() => {
@@ -189,6 +316,11 @@ export function Terminal({
         discountType !== prepared.discountType));
   function load(order: SaleOrder) {
     if (order.status !== 'OPEN') {
+      try {
+        clearWorkingCart(actorId, cartScope, order.id);
+      } catch {
+        setStorageError('Không thể dọn bản giỏ đã đóng trên thiết bị.');
+      }
       setPrepared(null);
       setLines([]);
       setId(crypto.randomUUID());
@@ -210,7 +342,14 @@ export function Terminal({
     setDiscountValue(String(order.discountValue));
   }
   function details(line: Line) {
-    const current = products.find((p) => p.id === line.productId)!;
+    const current = products.find((p) => p.id === line.productId) ?? {
+      id: line.productId,
+      categoryId: '',
+      name: 'Món không còn trong thực đơn',
+      imageUrl: null,
+      isAvailable: false,
+      variants: [],
+    };
     const product = line.snapshot
       ? {
           ...current,
@@ -220,7 +359,10 @@ export function Terminal({
             .join(' · '),
         }
       : current;
-    const variant = orderLineVariant(line, product.variants);
+    const variant =
+      line.snapshot || product.variants.some((v) => v.id === line.variantId)
+        ? orderLineVariant(line, product.variants)
+        : { id: line.variantId, name: 'Size không còn bán', price: 0 };
     const selected = line.snapshot
       ? line.snapshot.toppings.map((t) => ({
           id: t.toppingId,
@@ -251,6 +393,18 @@ export function Terminal({
       lines.map((l) => details(l).money),
       discount,
     );
+    if (
+      lines.some(
+        (line) =>
+          !line.snapshot &&
+          !products.some(
+            (product) =>
+              product.isAvailable &&
+              product.variants.some((variant) => variant.id === line.variantId),
+          ),
+      )
+    )
+      valid = false;
   } catch {
     valid = false;
   }
@@ -258,7 +412,13 @@ export function Terminal({
     ? products.find((p) => p.id === editor.productId)
     : null;
   function add(product: MenuProduct) {
-    if (busy || !hasShift || !product.isAvailable || !product.variants.length)
+    if (
+      !cartReady ||
+      busy ||
+      !hasShift ||
+      !product.isAvailable ||
+      !product.variants.length
+    )
       return;
     const variant =
       product.variants.find((v) => v.name === 'M') ?? product.variants[0];
@@ -282,6 +442,10 @@ export function Terminal({
     setError('');
   }
   async function checkout(hold = false) {
+    if (!cartReady) {
+      setError('Đang khôi phục giỏ. Vui lòng chờ một chút.');
+      return;
+    }
     const input = checkoutSchema.safeParse({
       id,
       type,
@@ -346,6 +510,15 @@ export function Terminal({
     }
   }
   function complete(order: SaleOrder) {
+    try {
+      clearWorkingCart(actorId, cartScope, order.id);
+    } catch {
+      setStorageError(
+        'Đã thanh toán nhưng chưa dọn được bản giỏ đã lưu. Kiểm tra trước khi tiếp tục.',
+      );
+    }
+    setCartScope('new');
+    setPaymentId(crypto.randomUUID());
     window.history.replaceState(null, '', '/pos');
     setPaid(order);
     setNotice('');
@@ -378,6 +551,20 @@ export function Terminal({
           {hasShift ? 'Ca đang mở' : 'Mở ca để bán hàng'}
         </Link>
       </header>
+      {!cartReady && <p role="status">Đang khôi phục giỏ trên thiết bị…</p>}
+      {storageError && (
+        <p role="alert" className="rounded-xl bg-red-50 p-3">
+          {storageError}
+        </p>
+      )}
+      <button
+        type="button"
+        disabled={busy || !cartReady}
+        className="min-h-11 text-sm underline"
+        onClick={discardCart}
+      >
+        Bỏ giỏ đang nhập (không hủy đơn đã giữ)
+      </button>
       {notice && (
         <p
           role="status"
@@ -801,7 +988,8 @@ export function Terminal({
             )}
             {!valid && (
               <p role="alert" className="mb-3 text-sm text-red-700">
-                Giảm giá không hợp lệ.
+                Giảm giá hoặc món trong giỏ không còn hợp lệ. Kiểm tra lại thực
+                đơn.
               </p>
             )}
             <Button
@@ -966,6 +1154,7 @@ export function Terminal({
       )}
       {paymentOpen && prepared && (
         <PaymentDialog
+          paymentId={paymentId}
           order={prepared}
           bank={bank}
           onPaid={complete}

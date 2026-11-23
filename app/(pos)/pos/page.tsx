@@ -10,7 +10,7 @@ export default async function Page({
 }: {
   searchParams: Promise<{ orderId?: string; tableId?: string }>;
 }) {
-  const { storeId } = await requireUser();
+  const { storeId, id: actorId } = await requireUser();
   const params = await searchParams;
   const resolution = params.orderId
     ? await loadOrderResolution(storeId, params.orderId)
@@ -68,6 +68,7 @@ export default async function Page({
     ]);
   return (
     <Terminal
+      actorId={actorId}
       key={initialOrder?.id ?? params.tableId ?? 'new'}
       initialOrder={
         initialOrder ? JSON.parse(JSON.stringify(initialOrder)) : undefined
