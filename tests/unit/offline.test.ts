@@ -106,6 +106,23 @@ beforeEach(() => {
   mem.db.snapshots.rows.set('active', { id: 'active', data: snapshot() });
 });
 describe('local sale snapshots', () => {
+  it('refreshes an expired online snapshot before listing drafts after login', async () => {
+    mem.db.snapshots.rows.set('active', {
+      id: 'active',
+      data: { ...snapshot(), validUntil: 0 },
+    });
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify(snapshot())),
+    );
+    await expect(localDrafts()).resolves.toEqual([]);
+    expect(fetch).toHaveBeenCalledWith('/api/menu', expect.anything());
+    vi.stubGlobal('navigator', { onLine: false });
+    mem.db.snapshots.rows.set('active', {
+      id: 'active',
+      data: { ...snapshot(), validUntil: 0 },
+    });
+    await expect(localDrafts()).rejects.toThrow('hết hạn');
+  });
   it('rejects a stale local payment screen when another window changes the held draft', async () => {
     const stale = await prepareLocal(input());
     const changed = input();
