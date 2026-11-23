@@ -8,6 +8,7 @@ import {
   discountAmount,
   changeDue,
   cashSuggestions,
+  cashNoteSuggestions,
   vnd,
 } from '../../lib/money';
 describe('Vietnamese VND input', () => {
@@ -69,6 +70,16 @@ describe('integer VND', () => {
     expect(cashSuggestions(35000)).toEqual([
       35000, 36000, 40000, 50000, 100000,
     ]);
+  });
+  it('keeps useful banknotes within a four-button payment row', () => {
+    expect(cashNoteSuggestions(76500)).toEqual([76500, 100000, 200000, 500000]);
+    expect(cashNoteSuggestions(500000)).toEqual([500000, 600000]);
+    expect(cashNoteSuggestions(765000)).toEqual([
+      765000, 766000, 770000, 780000,
+    ]);
+    expect(cashNoteSuggestions(0)).toEqual([]);
+    for (const invalid of [-1, 0.5, NaN])
+      expect(() => cashNoteSuggestions(invalid)).toThrow();
   });
   it('rejects invalid amounts, percentages, short cash and overflow', () => {
     for (const amount of [-1, 0.5, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1])

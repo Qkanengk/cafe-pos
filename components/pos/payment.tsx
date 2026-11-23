@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { MoneyInput } from '@/components/ui/money-input';
 import { Dialog } from '@/components/ui/dialog';
 import {
-  cashSuggestions,
+  cashNoteSuggestions,
   changeDue,
   formatVnd,
   parseVndInput,
@@ -229,21 +229,19 @@ export function PaymentDialog({
                 inputMode="numeric"
               />
               <div className="my-3 grid grid-cols-4 gap-2">
-                {cashSuggestions(order.total)
-                  .slice(0, 4)
-                  .map((value) => (
-                    <button
-                      type="button"
-                      data-testid="cash-suggestion"
-                      aria-label={'Khách đưa ' + value}
-                      key={value}
-                      onClick={() => setReceived(String(value))}
-                      disabled={busy}
-                      className="min-h-10 rounded-md border border-stone-300 px-1 text-xs font-medium hover:bg-stone-50"
-                    >
-                      {formatVnd(value)}
-                    </button>
-                  ))}
+                {cashNoteSuggestions(order.total).map((value) => (
+                  <button
+                    type="button"
+                    data-testid="cash-suggestion"
+                    aria-label={'Khách đưa ' + value}
+                    key={value}
+                    onClick={() => setReceived(String(value))}
+                    disabled={busy}
+                    className="min-h-10 rounded-md border border-stone-300 px-1 text-xs font-medium hover:bg-stone-50"
+                  >
+                    {formatVnd(value)}
+                  </button>
+                ))}
               </div>
               <div className="cash-keypad">
                 {[

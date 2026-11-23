@@ -69,6 +69,14 @@ export function cashSuggestions(total: number): number[] {
   ];
   return [...new Set(suggestions)].sort((a, b) => a - b).slice(0, 5);
 }
+export function cashNoteSuggestions(total: number): number[] {
+  vnd(total);
+  if (total === 0) return [];
+  const notes = CASH_DENOMINATIONS.filter((note) => note > total);
+  return notes.length
+    ? [total, ...notes].slice(0, 4)
+    : cashSuggestions(total).slice(0, 4);
+}
 
 export type PaymentValue = {
   method: 'CASH' | 'BANK_TRANSFER';
