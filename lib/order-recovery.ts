@@ -1,4 +1,4 @@
-import type { SaleOrder } from './sales-types';
+import type { SaleOrder, MenuVariant } from './sales-types';
 export function orderCompletionMessage(
   order: Pick<SaleOrder, 'status' | 'total' | 'tableId'>,
 ) {
@@ -20,6 +20,20 @@ export type WorkingLine = {
   note: string;
   snapshot?: SaleOrder['items'][number];
 };
+export function orderLineVariant(
+  line: WorkingLine,
+  variants: MenuVariant[],
+): MenuVariant {
+  const current = variants.find((variant) => variant.id === line.variantId);
+  if (current) return current;
+  if (line.snapshot)
+    return {
+      id: line.variantId,
+      name: line.snapshot.nameSnapshot.split(' · ').at(-1) ?? 'Cỡ đã lưu',
+      price: line.snapshot.priceSnapshot,
+    };
+  throw new Error('Không tìm thấy size của món. Hãy kiểm tra lại thực đơn.');
+}
 export function orderLines(order?: SaleOrder): WorkingLine[] {
   return (
     order?.items

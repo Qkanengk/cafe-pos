@@ -3,6 +3,7 @@ import {
   orderLines,
   reapplyPending,
   orderCompletionMessage,
+  orderLineVariant,
 } from '../../lib/order-recovery';
 import type { SaleOrder } from '../../lib/sales-types';
 const item: SaleOrder['items'][number] = {
@@ -17,6 +18,20 @@ const item: SaleOrder['items'][number] = {
   toppings: [],
 };
 const base = { id: 'order', status: 'OPEN', items: [item] } as SaleOrder;
+it('keeps a held historical size renderable after it is retired from the menu', () => {
+  const line = orderLines(base)[0];
+  expect(orderLineVariant(line, [])).toEqual({
+    id: 'v',
+    name: 'M',
+    price: 25000,
+  });
+  expect(
+    orderLineVariant(line, [{ id: 'v', name: 'M', price: 50000 }]).price,
+  ).toBe(50000);
+  expect(() => orderLineVariant({ ...line, snapshot: undefined }, [])).toThrow(
+    'Không tìm thấy size',
+  );
+});
 it('clearly confirms a cancelled last-item bill and released table', () => {
   expect(
     orderCompletionMessage({ status: 'CANCELLED', total: 0, tableId: 'table' }),

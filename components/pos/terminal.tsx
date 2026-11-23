@@ -26,6 +26,7 @@ import {
   orderLines,
   reapplyPending,
   orderCompletionMessage,
+  orderLineVariant,
   type WorkingLine as Line,
 } from '@/lib/order-recovery';
 import {
@@ -219,7 +220,7 @@ export function Terminal({
             .join(' · '),
         }
       : current;
-    const variant = product.variants.find((v) => v.id === line.variantId)!;
+    const variant = orderLineVariant(line, product.variants);
     const selected = line.snapshot
       ? line.snapshot.toppings.map((t) => ({
           id: t.toppingId,
