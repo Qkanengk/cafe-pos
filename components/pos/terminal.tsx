@@ -1,5 +1,6 @@
 'use client';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import {
   Coffee,
@@ -16,7 +17,14 @@ import { Input } from '@/components/ui/input';
 import { Dialog } from '@/components/ui/dialog';
 import { PaymentDialog } from './payment';
 import { PrintLinks } from './print-links';
-import { cartTotal, lineTotal, formatVnd, type Discount } from '@/lib/money';
+import { OrderTools } from './order-tools';
+import {
+  cartTotal,
+  lineTotal,
+  formatVnd,
+  startingPrice,
+  type Discount,
+} from '@/lib/money';
 import { checkoutSchema } from '@/lib/sales-validation';
 import type {
   MenuProduct,
@@ -32,6 +40,7 @@ type Line = {
   quantity: number;
   toppingIds: string[];
   note: string;
+  snapshot?: SaleOrder['items'][number];
 };
 type Props = {
   products: MenuProduct[];
@@ -40,7 +49,24 @@ type Props = {
   tables: { id: string; name: string; area: string }[];
   bank: BankDetails;
   hasShift: boolean;
+  initialOrder?: SaleOrder;
+  initialTableId?: string;
 };
+function orderLines(order?: SaleOrder): Line[] {
+  return (
+    order?.items
+      .filter((i) => i.status === 'ACTIVE')
+      .map((i) => ({
+        id: i.id,
+        productId: i.productId,
+        variantId: i.variantId,
+        quantity: i.quantity,
+        toppingIds: i.toppings.map((t) => t.toppingId),
+        note: i.note,
+        snapshot: i,
+      })) ?? []
+  );
+}
 const quickNotes = [
   'ít đá',
   'ít đường',
@@ -55,33 +81,88 @@ export function Terminal({
   tables,
   bank,
   hasShift,
+  initialOrder,
+  initialTableId,
 }: Props) {
-  const [lines, setLines] = useState<Line[]>([]);
-  const [id, setId] = useState(() => crypto.randomUUID());
+  const router = useRouter();
+  const [lines, setLines] = useState<Line[]>(() => orderLines(initialOrder));
+  const [id, setId] = useState(() => initialOrder?.id ?? crypto.randomUUID());
   const [category, setCategory] = useState('');
   const [query, setQuery] = useState('');
-  const [type, setType] = useState<'TAKEAWAY' | 'DINE_IN'>('TAKEAWAY');
-  const [tableId, setTableId] = useState('');
-  const [discountType, setDiscountType] = useState<'PERCENT' | 'AMOUNT'>(
-    'PERCENT',
+  const [type, setType] = useState<'TAKEAWAY' | 'DINE_IN'>(
+    initialOrder?.type ?? (initialTableId ? 'DINE_IN' : 'TAKEAWAY'),
   );
-  const [discountValue, setDiscountValue] = useState('0');
+  const [tableId, setTableId] = useState(
+    initialOrder?.tableId ?? initialTableId ?? '',
+  );
+  const [discountType, setDiscountType] = useState<'PERCENT' | 'AMOUNT'>(
+    initialOrder?.discountType ?? 'PERCENT',
+  );
+  const [discountValue, setDiscountValue] = useState(
+    String(initialOrder?.discountValue ?? 0),
+  );
   const [editor, setEditor] = useState<Line | null>(null);
-  const [prepared, setPrepared] = useState<SaleOrder | null>(null);
+  const [prepared, setPrepared] = useState<SaleOrder | null>(
+    initialOrder ?? null,
+  );
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [paid, setPaid] = useState<SaleOrder | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const dirty =
+    !!prepared &&
+    (lines.some(
+      (l) =>
+        !l.snapshot ||
+        l.quantity !== l.snapshot.quantity ||
+        l.note !== l.snapshot.note,
+    ) ||
+      type !== prepared.type ||
+      (type === 'DINE_IN' && tableId !== prepared.tableId) ||
+      Number(discountValue) !== prepared.discountValue ||
+      (Number(discountValue) > 0 && discountType !== prepared.discountType));
+  function load(order: SaleOrder) {
+    if (order.status !== 'OPEN') {
+      router.push('/orders');
+      router.refresh();
+      return;
+    }
+    setPrepared(order);
+    window.history.replaceState(null, '', '/pos?orderId=' + order.id);
+    setId(order.id);
+    setLines(orderLines(order));
+    setType(order.type);
+    setTableId(order.tableId ?? '');
+    setDiscountType(order.discountType ?? 'PERCENT');
+    setDiscountValue(String(order.discountValue));
+  }
   function details(line: Line) {
-    const product = products.find((p) => p.id === line.productId)!;
+    const current = products.find((p) => p.id === line.productId)!;
+    const product = line.snapshot
+      ? {
+          ...current,
+          name: line.snapshot.nameSnapshot
+            .split(' · ')
+            .slice(0, -1)
+            .join(' · '),
+        }
+      : current;
     const variant = product.variants.find((v) => v.id === line.variantId)!;
-    const selected = toppings.filter((t) => line.toppingIds.includes(t.id));
+    const selected = line.snapshot
+      ? line.snapshot.toppings.map((t) => ({
+          id: t.toppingId,
+          name: t.nameSnapshot,
+          price: t.priceSnapshot,
+          isAvailable: true,
+        }))
+      : toppings.filter((t) => line.toppingIds.includes(t.id));
     return {
       product,
       variant,
       selected,
       money: {
-        price: variant.price,
+        price: line.snapshot?.priceSnapshot ?? variant.price,
         quantity: line.quantity,
         toppings: selected.map((t) => t.price),
       },
@@ -105,12 +186,7 @@ export function Terminal({
     ? products.find((p) => p.id === editor.productId)
     : null;
   function add(product: MenuProduct) {
-    if (
-      prepared ||
-      !hasShift ||
-      !product.isAvailable ||
-      !product.variants.length
-    )
+    if (busy || !hasShift || !product.isAvailable || !product.variants.length)
       return;
     const variant =
       product.variants.find((v) => v.name === 'M') ?? product.variants[0];
@@ -133,22 +209,22 @@ export function Terminal({
     setEditor(null);
     setError('');
   }
-  async function checkout() {
-    if (prepared) {
-      setPaymentOpen(true);
-      return;
-    }
+  async function checkout(hold = false) {
     const input = checkoutSchema.safeParse({
       id,
       type,
       ...(type === 'DINE_IN' ? { tableId } : {}),
       discount,
-      lines: lines.map(({ variantId, quantity, toppingIds, note }) => ({
-        variantId,
-        quantity,
-        toppingIds,
-        note,
-      })),
+      note: prepared?.note ?? '',
+      lines: lines.map(
+        ({ variantId, quantity, toppingIds, note, snapshot }) => ({
+          ...(snapshot ? { itemId: snapshot.id } : {}),
+          variantId,
+          quantity,
+          toppingIds,
+          note,
+        }),
+      ),
     });
     if (!input.success) {
       setError(input.error.issues.map((i) => i.message).join(' · '));
@@ -157,19 +233,27 @@ export function Terminal({
     setBusy(true);
     setError('');
     try {
-      const response = await fetch('/api/orders', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(input.data),
-      });
+      const response = await fetch(
+        prepared ? '/api/orders/' + id : '/api/orders',
+        {
+          method: prepared ? 'PUT' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(
+            prepared
+              ? { version: prepared.version, order: input.data }
+              : input.data,
+          ),
+        },
+      );
       const order = await response.json();
       if (!response.ok) throw new Error(order.error);
       if (order.status === 'PAID') {
         complete(order);
         return;
       }
-      setPrepared(order);
-      setPaymentOpen(true);
+      load(order);
+      setNotice(hold ? 'Đã giữ đơn · ' + order.code : '');
+      if (!hold) setPaymentOpen(true);
     } catch (e) {
       setError(
         e instanceof Error
@@ -181,7 +265,9 @@ export function Terminal({
     }
   }
   function complete(order: SaleOrder) {
+    window.history.replaceState(null, '', '/pos');
     setPaid(order);
+    setNotice('');
     setPrepared(null);
     setPaymentOpen(false);
     setLines([]);
@@ -211,6 +297,44 @@ export function Terminal({
           {hasShift ? 'Ca đang mở' : 'Mở ca để bán hàng'}
         </Link>
       </header>
+      {notice && (
+        <p
+          role="status"
+          className="rounded-xl bg-emerald-50 p-4 font-semibold text-emerald-900"
+        >
+          {notice}{' '}
+          <Link href="/orders" className="ml-3 underline">
+            Đơn đang giữ
+          </Link>{' '}
+          ·{' '}
+          <a href="/pos" className="underline">
+            Đơn mới
+          </a>
+        </p>
+      )}
+      {prepared && (
+        <section className="space-y-3 rounded-2xl border border-stone-200 bg-white p-4">
+          <p className="font-semibold">
+            {prepared.code} · Phiên bản {prepared.version} ·{' '}
+            {prepared.table?.name ?? 'Mang đi'}
+          </p>
+          {dirty ? (
+            <p className="text-sm text-amber-800">
+              Giỏ có thay đổi chưa lưu. Chạm Giữ đơn trước khi
+              tách/gộp/chuyển/hủy.
+            </p>
+          ) : (
+            <OrderTools
+              order={prepared}
+              tables={tables}
+              onChange={(order) => {
+                load(order);
+                setNotice('Đã cập nhật đơn');
+              }}
+            />
+          )}
+        </section>
+      )}
       {!hasShift && (
         <p role="alert" className="rounded-xl bg-amber-50 p-4 text-amber-900">
           Quán chưa mở ca.{' '}
@@ -291,7 +415,7 @@ export function Terminal({
                   disabled={
                     !hasShift ||
                     !product.isAvailable ||
-                    !!prepared ||
+                    busy ||
                     !product.variants.length
                   }
                   onClick={() => add(product)}
@@ -322,14 +446,7 @@ export function Terminal({
                   <span className="font-bold">{product.name}</span>
                   <span className="mt-1 text-sm text-stone-500">
                     {product.isAvailable
-                      ? product.variants.length
-                        ? formatVnd(
-                            (
-                              product.variants.find((v) => v.name === 'M') ??
-                              product.variants[0]
-                            ).price,
-                          )
-                        : 'Chưa có giá'
+                      ? startingPrice(product.variants.map((v) => v.price))
                       : 'Hết hàng'}
                   </span>
                 </button>
@@ -357,7 +474,7 @@ export function Terminal({
             {(['TAKEAWAY', 'DINE_IN'] as const).map((value) => (
               <button
                 key={value}
-                disabled={!!prepared}
+                disabled={busy}
                 aria-pressed={type === value}
                 onClick={() => setType(value)}
                 className={
@@ -374,7 +491,7 @@ export function Terminal({
           {type === 'DINE_IN' && (
             <select
               aria-label="Chọn bàn"
-              disabled={!!prepared}
+              disabled={busy}
               value={tableId}
               onChange={(e) => setTableId(e.target.value)}
               className="mb-4 min-h-12 w-full rounded-xl border border-stone-300 px-3"
@@ -403,7 +520,7 @@ export function Terminal({
                   className="flex items-start justify-between gap-2 border-b border-stone-100 pb-3"
                 >
                   <button
-                    disabled={!!prepared}
+                    disabled={busy}
                     className="min-h-12 flex-1 text-left"
                     onClick={() => setEditor(line)}
                   >
@@ -428,7 +545,7 @@ export function Terminal({
                     </span>
                   </button>
                   <button
-                    disabled={!!prepared}
+                    disabled={busy || !!line.snapshot}
                     aria-label={'Xóa ' + product.name}
                     className="flex h-12 w-10 items-center justify-center text-stone-400 hover:text-red-700"
                     onClick={() =>
@@ -456,14 +573,14 @@ export function Terminal({
                 type="number"
                 min={0}
                 step={1}
-                disabled={!!prepared}
+                disabled={busy}
                 value={discountValue}
                 onChange={(e) => setDiscountValue(e.target.value)}
                 className="w-24"
               />
               <select
                 aria-label="Kiểu giảm giá"
-                disabled={!!prepared}
+                disabled={busy}
                 value={discountType}
                 onChange={(e) =>
                   setDiscountType(e.target.value as 'PERCENT' | 'AMOUNT')
@@ -481,7 +598,7 @@ export function Terminal({
             {prepared && (
               <p className="mb-3 flex items-center gap-2 text-xs text-amber-800">
                 <LockKeyhole size={16} aria-hidden="true" />
-                Đơn {prepared.code} đã chốt nội dung.
+                Món đã giữ: dùng Hủy món + PIN để giảm hoặc xóa.
               </p>
             )}
             {error && (
@@ -489,7 +606,15 @@ export function Terminal({
                 role="alert"
                 className="mb-3 rounded-xl bg-red-50 p-3 text-sm text-red-800"
               >
-                {error}
+                {error}{' '}
+                {error.includes('tải lại') && (
+                  <a
+                    className="font-bold underline"
+                    href={'/pos?orderId=' + id}
+                  >
+                    Tải lại đơn
+                  </a>
+                )}
               </p>
             )}
             {!valid && (
@@ -500,13 +625,16 @@ export function Terminal({
             <Button
               className="w-full py-4 text-lg"
               disabled={busy || !hasShift || !lines.length || !valid}
-              onClick={checkout}
+              onClick={() => checkout()}
             >
-              {busy
-                ? 'Đang chốt đơn…'
-                : prepared
-                  ? 'Tiếp tục thanh toán'
-                  : 'Thanh toán'}
+              {busy ? 'Đang chốt đơn…' : 'Thanh toán'}
+            </Button>
+            <Button
+              className="mt-3 w-full border border-emerald-700 bg-white text-emerald-900 hover:bg-emerald-50"
+              disabled={busy || !hasShift || !lines.length || !valid}
+              onClick={() => checkout(true)}
+            >
+              Giữ đơn / Tạm tính
             </Button>
           </div>
         </aside>
@@ -528,6 +656,7 @@ export function Terminal({
                     <button
                       type="button"
                       key={variant.id}
+                      disabled={!!editor.snapshot}
                       aria-label={'Size ' + variant.name}
                       aria-pressed={editor.variantId === variant.id}
                       onClick={() =>
@@ -562,7 +691,7 @@ export function Terminal({
                     <input
                       aria-label={topping.name}
                       type="checkbox"
-                      disabled={!topping.isAvailable}
+                      disabled={!topping.isAvailable || !!editor.snapshot}
                       checked={editor.toppingIds.includes(topping.id)}
                       onChange={(e) =>
                         setEditor({
@@ -621,7 +750,7 @@ export function Terminal({
                 <Button
                   aria-label="Giảm số lượng"
                   className="bg-stone-100 px-3 text-stone-700 hover:bg-stone-200"
-                  disabled={editor.quantity <= 1}
+                  disabled={editor.quantity <= (editor.snapshot?.quantity ?? 1)}
                   onClick={() =>
                     setEditor({ ...editor, quantity: editor.quantity - 1 })
                   }

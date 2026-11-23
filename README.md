@@ -39,7 +39,7 @@ npm run build
 
 Next.js 16 dùng `proxy.ts` thay tên `middleware.ts`; middleware kiểm tra JWT, các layout server kiểm tra lại người dùng trong database. Trang `/admin/*` và `/reports` chỉ dành cho chủ quán. Phiên hết hạn sau 12 giờ, cookie HttpOnly/SameSite=Lax. Môi trường HTTP local dùng cookie không Secure; HTTPS tự bật Secure.
 
-Offline, đồng bộ, quản lý bàn nâng cao, hủy món/đơn bằng PIN chủ quán và báo cáo thuộc các giai đoạn sau. Giai đoạn hiện tại cần kết nối đến máy chủ POS. Bản in được kiểm tra trong trình duyệt, chưa thử máy in nhiệt thực tế.
+Offline, đồng bộ và báo cáo thuộc các giai đoạn sau. Giai đoạn hiện tại cần kết nối đến máy chủ POS. Bản in được kiểm tra trong trình duyệt, chưa thử máy in nhiệt thực tế.
 
 ## Quản trị (giai đoạn 2)
 
@@ -65,7 +65,7 @@ Tính tiền chỉ ở `lib/money.ts`: VND nguyên không âm, phần trăm nguy
 - `/pos`: chọn danh mục/tìm món, size M mặc định, topping, ghi chú nhanh và số lượng. Chạm dòng giỏ để sửa; biểu tượng thùng rác để xóa. Chọn mang đi/tại bàn, bàn và giảm giá %/số tiền. Món hết hàng bị khóa.
 - Khi chạm **Thanh toán**, server chốt nội dung và giá từ thực đơn hiện tại, lưu snapshot tên/size/giá/topping/ghi chú. UUID do client tạo; mã `CFYYYYMMDD-0001` tăng tuần tự theo cửa hàng và ngày Việt Nam, được cấp trong transaction có khóa. Gửi lại cùng UUID/nội dung không tạo trùng đơn; gửi lại thanh toán không thu hai lần.
 - Tiền mặt: nhập tiền hoặc chạm số gợi ý và xem tiền thối. Chuyển khoản: VietQR lớn có số tiền và mã đơn; thu ngân phải kiểm tra tiền về rồi xác nhận. Lưu người xác nhận cho cả hai phương thức. Không có xác minh ngân hàng tự động.
-- Đơn đã chốt không sửa tại giỏ. Có thể đóng màn hình thanh toán và tiếp tục ở `/orders` (100 đơn gần nhất); đơn chờ được giữ trên server ngay cả khi tải lại trang. Giỏ chưa chốt chỉ nằm trong bộ nhớ trình duyệt.
+- Có thể đóng màn hình thanh toán, giữ đơn và tiếp tục sửa ở `/pos` hoặc `/orders`. Giỏ chưa giữ chỉ nằm trong bộ nhớ trình duyệt; đơn đã giữ nằm trên máy chủ và mở lại được sau khi tải lại trang.
 - Sau thanh toán, **In bill** và **In phiếu pha chế** mở trang `/print/receipt?orderId=...` hoặc `/print/bar?orderId=...`; chọn **In ngay** để mở hộp in trình duyệt. Khổ giấy 58/80mm lấy từ cài đặt. In lại tại `/orders`. Biểu tượng dùng SVG `lucide-react` đóng gói cùng ứng dụng, không cần font biểu tượng/CDN.
 
 Kiểm tra bán hàng bằng Playwright (Compose đang chạy, tài khoản demo, không có ca mở):
@@ -75,3 +75,21 @@ CHROME_PATH=$(command -v google-chrome) SCREENSHOT_DIR=/home/ubuntu/shots node t
 ```
 
 Script đăng nhập PIN → mở ca → thêm 3 món có topping/ghi chú → tiền mặt → bill/phiếu pha chế → VietQR → đóng ca, đồng thời kiểm tra idempotency, validation, giảm giá và SVG. Lưu 5 ảnh yêu cầu cùng ảnh quản trị và đối soát. Giao dịch kiểm thử được giữ để in lại; ca kiểm thử được đóng, cài đặt khổ giấy được khôi phục. Thời gian chạm tự động không phải phép đo thao tác của nhân viên thực tế.
+
+## Bàn & giữ đơn (giai đoạn 4)
+
+- Dữ liệu mẫu mới có giá riêng cho từng món và size: cà phê đen S/M/L 20/25/30 nghìn, bạc xỉu từ 29 nghìn; bánh chỉ một size **Phần**. Thẻ món hiển thị **từ** giá thấp nhất khi các size khác giá. Seed thoát ngay nếu đã có cửa hàng, không sửa giá, tài khoản hay lịch sử của database hiện có. Form quản trị giữ nguyên loại một phần của bánh đã seed.
+- `/tables`: nhóm bàn theo khu vực, trống/đang phục vụ và tổng các đơn mở. Chạm bàn trống để tạo đơn tại bàn; chạm bàn bận để tiếp tục. Khi tách thành nhiều bill cùng bàn, các bill có liên kết riêng dưới bàn.
+- **Giữ đơn / Tạm tính** lưu OPEN mà chưa thu tiền. Mở lại từ bàn hoặc bộ lọc **Đang giữ** ở `/orders`. Có thể thêm món, tăng số lượng, sửa ghi chú/giảm giá; món đã lưu giữ nguyên snapshot giá. Giảm số lượng bằng tách đơn hoặc hủy món có PIN, không âm thầm xóa lịch sử.
+- Mọi sửa đổi, chuyển bàn, tách/gộp/hủy đều gửi `Order.version`, kiểm tra trong transaction và tăng version. Thiết bị dùng bản cũ nhận **409** cùng thông báo tiếng Việt và liên kết **Tải lại đơn**. Thanh toán cũng kiểm tra phiên bản; retry đơn đã thanh toán vẫn idempotent.
+- **Tách đơn** chọn món/số lượng sang UUID mới, giữ lại ít nhất một món ở đơn gốc. Snapshot topping/ghi chú được sao chép. Giảm giá thực tế được phân bổ theo tỷ lệ tạm tính, làm tròn VND một lần; hai đơn giữ nguyên tổng tiền. **Gộp đơn** chuyển món đang bán của đơn nguồn vào đơn hiện tại; cộng hai mức giảm thành giảm tiền. Đơn nguồn đóng ở trạng thái CANCELLED, audit phân biệt `MERGED_INTO` với hủy. **Chuyển bàn** chỉ nhận bàn trống; bàn bận dùng gộp đơn.
+- **Hủy món / Hủy đơn** chỉ áp dụng đơn OPEN, yêu cầu lý do và PIN của OWNER đang hoạt động cùng cửa hàng. Lưu VOIDED/CANCELLED, lý do và ID chủ quán cho phép trong AuditLog, không lưu PIN. Hủy món cuối cùng tự đóng đơn. Đơn đã thu tiền không sửa/hủy trong giai đoạn này; chưa có luồng hoàn tiền.
+- `/orders` hiển thị toàn bộ đơn của ca đang mở, lọc trạng thái, chi tiết snapshot/món hủy, tiếp tục đơn và in lại bill/phiếu pha chế. Sau khi đóng ca, danh sách ca hiện tại trống; liên kết in đã lưu vẫn dùng được.
+
+Kiểm tra bàn/giữ đơn (Compose chạy, tài khoản demo và không có ca mở; script đọc AuditLog qua `docker compose exec db psql`):
+
+```sh
+CHROME_PATH=$(command -v google-chrome) node tests/e2e/tables-check.mjs
+```
+
+Để kiểm tra giá mẫu mới mà không đổi database hiện có, tạo database kiểm thử riêng trong cùng PostgreSQL rồi chạy image ứng dụng với `DATABASE_URL` trỏ đến database đó, cổng phụ 3001. Chạy script với `BASE_URL=http://localhost:3001 CHECK_DATABASE=cafe_phase4_check EXPECT_FRESH_PRICES=1`. Script giữ lại lịch sử giao dịch kiểm thử, đóng ca khi hoàn tất và lưu `tables.png`, `void-pin.png`, `orders.png`, `pos.png` cùng ảnh lỗi đồng thời vào `SCREENSHOT_DIR` (mặc định `/home/ubuntu/shots`).

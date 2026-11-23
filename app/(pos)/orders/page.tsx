@@ -4,14 +4,22 @@ import { orderInclude } from '@/lib/sales';
 import { Orders } from '@/components/pos/orders';
 export default async function Page() {
   const { storeId } = await requireUser();
-  const [orders, store] = await Promise.all([
+  const shift = await db.shift.findFirst({
+    where: { storeId, closedAt: null },
+  });
+  const [orders, tables] = await Promise.all([
     db.order.findMany({
-      where: { storeId },
+      where: { storeId, shiftId: shift?.id ?? 'none' },
       include: orderInclude,
       orderBy: { createdAt: 'desc' },
-      take: 100,
     }),
-    db.store.findUniqueOrThrow({ where: { id: storeId } }),
+    db.table.findMany({
+      where: { storeId },
+      orderBy: { name: 'asc' },
+      select: { id: true, name: true, area: true },
+    }),
   ]);
-  return <Orders initial={JSON.parse(JSON.stringify(orders))} bank={store} />;
+  return (
+    <Orders initial={JSON.parse(JSON.stringify(orders))} tables={tables} />
+  );
 }

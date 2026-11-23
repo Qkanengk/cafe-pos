@@ -61,8 +61,8 @@ export function PaymentDialog({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(
           method === 'CASH'
-            ? { method, received: Number(received) }
-            : { method, confirmed: true },
+            ? { method, received: Number(received), version: order.version }
+            : { method, confirmed: true, version: order.version },
         ),
       });
       const result = await response.json();
@@ -232,6 +232,14 @@ export function PaymentDialog({
               className="my-3 rounded-xl bg-red-50 p-3 text-red-800"
             >
               {error}
+              {error.includes('tải lại') && (
+                <a
+                  className="ml-2 font-bold underline"
+                  href={'/pos?orderId=' + order.id}
+                >
+                  Tải lại đơn
+                </a>
+              )}
             </p>
           )}
           <Button
@@ -245,7 +253,8 @@ export function PaymentDialog({
             {busy ? 'Đang lưu…' : 'Xác nhận đã nhận tiền'}
           </Button>
           <p className="mt-4 text-center text-xs text-stone-400">
-            Đơn đã chốt nội dung. Có thể đóng và mở lại để tiếp tục thanh toán.
+            Thanh toán theo phiên bản đơn hiện tại. Đóng để tiếp tục giữ/sửa
+            đơn.
           </p>
         </div>
       </div>

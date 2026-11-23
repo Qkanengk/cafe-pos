@@ -1,8 +1,22 @@
 import { requireUser } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { Terminal } from '@/components/pos/terminal';
-export default async function Page() {
+import { orderInclude } from '@/lib/sales';
+import { notFound } from 'next/navigation';
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: Promise<{ orderId?: string; tableId?: string }>;
+}) {
   const { storeId } = await requireUser();
+  const params = await searchParams;
+  const initialOrder = params.orderId
+    ? await db.order.findFirst({
+        where: { id: params.orderId, storeId, status: 'OPEN' },
+        include: orderInclude,
+      })
+    : null;
+  if (params.orderId && !initialOrder) notFound();
   const [products, categories, toppings, tables, store, shift] =
     await Promise.all([
       db.product.findMany({
@@ -21,6 +35,11 @@ export default async function Page() {
     ]);
   return (
     <Terminal
+      key={initialOrder?.id ?? params.tableId ?? 'new'}
+      initialOrder={
+        initialOrder ? JSON.parse(JSON.stringify(initialOrder)) : undefined
+      }
+      initialTableId={params.tableId}
       products={products}
       categories={categories}
       toppings={toppings}

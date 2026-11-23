@@ -51,6 +51,9 @@ function initialValues(resource: Resource, row?: Row): Record<string, unknown> {
     S: 25000,
     M: 30000,
     L: 35000,
+    portion: ((row?.variants ?? []) as { name: string }[]).some(
+      (v) => v.name === 'Phần',
+    ),
     ...row,
     email: row?.email ?? '',
     imageUrl: row?.imageUrl ?? '',
@@ -114,7 +117,7 @@ export function AdminWorkspace({
               hint: 'Liên kết ảnh http/https. Để trống nếu chưa có ảnh.',
             },
             { key: 'sortOrder', label: 'Thứ tự hiển thị', type: 'number' },
-            ...['S', 'M', 'L'].map((key) => ({
+            ...(values.portion ? ['Phần'] : ['S', 'M', 'L']).map((key) => ({
               key,
               label: 'Giá size ' + key + ' (₫)',
               type: 'number' as const,
@@ -232,7 +235,12 @@ export function AdminWorkspace({
     event.preventDefault();
     const payload =
       resource === 'products'
-        ? { ...values, prices: { S: values.S, M: values.M, L: values.L } }
+        ? {
+            ...values,
+            prices: values.portion
+              ? { Phần: values['Phần'] }
+              : { S: values.S, M: values.M, L: values.L },
+          }
         : values;
     const parsed = adminSchemas[resource].safeParse(payload);
     if (!parsed.success) {
