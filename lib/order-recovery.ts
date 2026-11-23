@@ -1,4 +1,16 @@
 import type { SaleOrder } from './sales-types';
+export function orderCompletionMessage(
+  order: Pick<SaleOrder, 'status' | 'total' | 'tableId'>,
+) {
+  if (order.status === 'CANCELLED')
+    return (
+      'Đơn đã hủy, tổng tiền còn 0 ₫.' +
+      (order.tableId ? ' Bàn đã được giải phóng khỏi đơn này.' : '')
+    );
+  if (order.status === 'PAID')
+    return 'Đơn đã được thanh toán trước đó. Không nhận thêm tiền; kiểm tra hóa đơn.';
+  return 'Đã cập nhật đơn';
+}
 export type WorkingLine = {
   id: string;
   productId: string;

@@ -1,5 +1,9 @@
 import { it, expect } from 'vitest';
-import { orderLines, reapplyPending } from '../../lib/order-recovery';
+import {
+  orderLines,
+  reapplyPending,
+  orderCompletionMessage,
+} from '../../lib/order-recovery';
 import type { SaleOrder } from '../../lib/sales-types';
 const item: SaleOrder['items'][number] = {
   id: 'i',
@@ -13,6 +17,17 @@ const item: SaleOrder['items'][number] = {
   toppings: [],
 };
 const base = { id: 'order', status: 'OPEN', items: [item] } as SaleOrder;
+it('clearly confirms a cancelled last-item bill and released table', () => {
+  expect(
+    orderCompletionMessage({ status: 'CANCELLED', total: 0, tableId: 'table' }),
+  ).toContain('Bàn đã được giải phóng');
+  expect(
+    orderCompletionMessage({ status: 'OPEN', total: 25000, tableId: null }),
+  ).toBe('Đã cập nhật đơn');
+  expect(
+    orderCompletionMessage({ status: 'PAID', total: 25000, tableId: 'table' }),
+  ).toContain('Không nhận thêm tiền');
+});
 it('keeps another window’s saved addition and this window’s pending Latte', () => {
   const fresh = {
     ...base,

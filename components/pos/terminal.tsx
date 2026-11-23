@@ -1,6 +1,5 @@
 'use client';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import {
   Coffee,
@@ -25,6 +24,7 @@ import { posFetch } from '@/lib/pos-fetch';
 import {
   orderLines,
   reapplyPending,
+  orderCompletionMessage,
   type WorkingLine as Line,
 } from '@/lib/order-recovery';
 import {
@@ -72,7 +72,6 @@ export function Terminal({
   initialTableId,
   offlineMode = false,
 }: Props) {
-  const router = useRouter();
   const [lines, setLines] = useState<Line[]>(() => orderLines(initialOrder));
   const [id, setId] = useState(() => initialOrder?.id ?? crypto.randomUUID());
   const [category, setCategory] = useState('');
@@ -154,8 +153,15 @@ export function Terminal({
         discountType !== prepared.discountType));
   function load(order: SaleOrder) {
     if (order.status !== 'OPEN') {
-      router.push('/orders');
-      router.refresh();
+      setPrepared(null);
+      setLines([]);
+      setId(crypto.randomUUID());
+      setTableId('');
+      setType('TAKEAWAY');
+      setDiscountValue('0');
+      setPaymentOpen(false);
+      setNotice(orderCompletionMessage(order));
+      window.history.replaceState(null, '', '/pos');
       return;
     }
     setPrepared(order);
@@ -443,7 +449,7 @@ export function Terminal({
               tables={tables}
               onChange={(order) => {
                 load(order);
-                setNotice('Đã cập nhật đơn');
+                setNotice(orderCompletionMessage(order));
               }}
             />
           )}
