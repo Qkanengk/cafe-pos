@@ -28,6 +28,7 @@ export const checkoutSchema = z
       .array(
         z.object({
           itemId: z.uuid().optional(),
+          clientLineId: z.uuid().optional(),
           variantId: z.uuid(),
           quantity: z.number().int().min(1).max(99),
           toppingIds: z

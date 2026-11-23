@@ -207,6 +207,7 @@ export async function editOrder(
           throw new HttpError('Topping đã hết hàng', 409);
         const item = await tx.orderItem.create({
           data: {
+            id: line.clientLineId,
             storeId: actor.storeId,
             orderId: id,
             productId: variant.productId,

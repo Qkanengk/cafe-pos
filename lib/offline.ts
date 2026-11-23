@@ -82,7 +82,7 @@ export async function prepareLocal(
       };
     });
     return {
-      id: crypto.randomUUID(),
+      id: line.clientLineId ?? crypto.randomUUID(),
       productId: product.id,
       variantId: variant.id,
       nameSnapshot: product.name + ' · ' + variant.name,

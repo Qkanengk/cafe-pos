@@ -72,7 +72,7 @@ it('reapplies only quantity increases and never revives a voided saved item', ()
       { ...base, items: [{ ...item, quantity: 2 }] },
       working,
     )[0].quantity,
-  ).toBe(3);
+  ).toBe(2);
   const merged = reapplyPending(
     base,
     { ...base, items: [{ ...item, status: 'VOIDED' }] },
@@ -86,7 +86,7 @@ it('reapplies only quantity increases and never revives a voided saved item', ()
 });
 it('rejects settled orders and excessive quantities without changing the pending cart', () => {
   const working = orderLines(base);
-  working[0].quantity = 99;
+  working[0].quantity = 100;
   expect(() =>
     reapplyPending(base, { ...base, status: 'PAID' }, working),
   ).toThrow('không còn mở');
@@ -97,5 +97,23 @@ it('rejects settled orders and excessive quantities without changing the pending
       working,
     ),
   ).toThrow('vượt 99');
-  expect(working[0].quantity).toBe(99);
+  expect(working[0].quantity).toBe(100);
+});
+it('does not re-add a pending line already committed before the response was lost', () => {
+  const pending = {
+    id: 'client-line',
+    productId: 'p',
+    variantId: 'v',
+    quantity: 1,
+    toppingIds: [],
+    note: '',
+  };
+  const fresh = {
+    ...base,
+    version: 2,
+    items: [item, { ...item, id: pending.id }],
+  };
+  expect(
+    reapplyPending(base, fresh, [...orderLines(base), pending]),
+  ).toHaveLength(2);
 });

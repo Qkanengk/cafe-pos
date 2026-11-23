@@ -458,8 +458,9 @@ export function Terminal({
       discount,
       note: prepared?.note ?? '',
       lines: lines.map(
-        ({ variantId, quantity, toppingIds, note, snapshot }) => ({
+        ({ id: lineId, variantId, quantity, toppingIds, note, snapshot }) => ({
           ...(snapshot ? { itemId: snapshot.id } : {}),
+          ...(!snapshot ? { clientLineId: lineId } : {}),
           variantId,
           quantity,
           toppingIds,
@@ -628,8 +629,9 @@ export function Terminal({
               <>
                 <p>
                   Ghép chỉ thêm món/số lượng bạn vừa tăng vào bản mới; không
-                  khôi phục món đã hủy. Ghi chú bạn sửa được ưu tiên. Kiểm tra
-                  lại giảm giá và bàn sau khi ghép.
+                  khôi phục món đã hủy. Số lượng cùng một dòng giữ mức lớn nhất
+                  để tránh cộng lặp khi máy chủ đã lưu. Ghi chú bạn sửa được ưu
+                  tiên. Kiểm tra lại giảm giá và bàn sau khi ghép.
                 </p>
                 <Button
                   onClick={() => {

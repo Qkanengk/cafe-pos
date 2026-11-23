@@ -60,18 +60,19 @@ export function reapplyPending(
   for (const line of working) {
     const old = base.items.find((i) => i.id === line.snapshot?.id);
     if (!old) {
+      if (fresh.items.some((item) => item.id === line.id)) continue;
       merged.push({ ...line, snapshot: undefined });
       continue;
     }
     const delta = Math.max(0, line.quantity - old.quantity);
     const current = merged.find((i) => i.id === old.id);
     if (current) {
-      current.quantity += delta;
+      current.quantity = Math.max(current.quantity, line.quantity);
       if (line.note !== old.note) current.note = line.note;
     } else if (delta > 0)
       merged.push({
         ...line,
-        id: 'pending-' + line.id,
+        id: crypto.randomUUID(),
         quantity: delta,
         snapshot: undefined,
       });

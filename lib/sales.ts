@@ -234,6 +234,7 @@ export async function prepareOrder(
     for (const { variant, selected, line } of lines) {
       const item = await tx.orderItem.create({
         data: {
+          id: line.clientLineId,
           storeId: actor.storeId,
           orderId: order.id,
           productId: variant.productId,
