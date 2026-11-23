@@ -22,7 +22,9 @@ export function OfflineWorkspace() {
         const draft = orderId ? await localDraft(orderId) : undefined;
         if (orderId && !draft)
           throw new Error(
-            'Không tìm thấy đơn trên thiết bị này. Kết nối để kiểm tra đơn máy chủ hoặc trở lại /pos để tạo đơn mới.',
+            navigator.onLine
+              ? 'Không tìm thấy đơn này trên máy chủ hoặc trên thiết bị. Kiểm tra lại mã đơn hoặc trở về quầy để tạo đơn mới.'
+              : 'Không tìm thấy đơn trên thiết bị này. Kết nối để kiểm tra đơn máy chủ hoặc trở lại /pos để tạo đơn mới.',
           );
         if (active) {
           setSnapshot(data);
