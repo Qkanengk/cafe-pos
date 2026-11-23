@@ -14,6 +14,32 @@ import {
 } from '../../lib/money';
 import { editVndInput } from '../../lib/money-edit';
 describe('Vietnamese VND input', () => {
+  it('never deletes digits when cutting or deleting a selection of grouping separators', () => {
+    for (const inputType of [
+      'deleteByCut',
+      'deleteContentBackward',
+      'deleteContentForward',
+    ])
+      expect(
+        editVndInput({
+          previous: '125.000',
+          text: '125000',
+          caret: 3,
+          inputType,
+          data: null,
+          rangeDeletion: true,
+        }),
+      ).toEqual({ value: '125000', display: '125.000', caret: 3 });
+    expect(
+      editVndInput({
+        previous: '125.000',
+        text: '125000',
+        caret: 3,
+        inputType: 'deleteByCut',
+        data: null,
+      }),
+    ).toEqual({ value: '125000', display: '125.000', caret: 3 });
+  });
   it('regroups append, middle insertion and digit/separator deletion while anchoring the caret to digits', () => {
     for (const [
       previous,

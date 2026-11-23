@@ -323,6 +323,13 @@ try {
     name: 'Thanh toán ' + order.code,
   });
   const tenderInput = payDialog.getByLabel('Tiền khách đưa', { exact: true });
+  await tenderInput.fill('125000');
+  await tenderInput.evaluate((input) => input.setSelectionRange(3, 4));
+  await tenderInput.press('Control+x');
+  await expect(tenderInput).toHaveValue('125.000');
+  await tenderInput.evaluate((input) => input.setSelectionRange(3, 4));
+  await tenderInput.press('Backspace');
+  await expect(tenderInput).toHaveValue('125.000');
   await tenderInput.fill('50.000');
   await tenderInput.press('End');
   await tenderInput.press('0');

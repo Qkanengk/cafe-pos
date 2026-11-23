@@ -6,12 +6,14 @@ export function editVndInput({
   caret,
   inputType,
   data,
+  rangeDeletion = false,
 }: {
   previous: string;
   text: string;
   caret: number;
   inputType: string;
   data: string | null;
+  rangeDeletion?: boolean;
 }) {
   let before = text.slice(0, caret).replace(/\D/g, '').length;
   let digits = text.replace(/[.,]/g, '');
@@ -28,7 +30,13 @@ export function editVndInput({
     (deleting || digitInsertion) &&
     /^[\d.]*$/.test(text) &&
     separators(text).length <= separators(previous).length;
-  if (maskedEdit && deleting && digits === oldDigits && text !== previous) {
+  if (
+    maskedEdit &&
+    !rangeDeletion &&
+    ['deleteContentBackward', 'deleteContentForward'].includes(inputType) &&
+    digits === oldDigits &&
+    text !== previous
+  ) {
     const index = inputType.endsWith('Backward') ? before - 1 : before;
     if (index >= 0 && index < digits.length) {
       digits = digits.slice(0, index) + digits.slice(index + 1);

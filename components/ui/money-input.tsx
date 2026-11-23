@@ -36,6 +36,7 @@ export function MoneyInput({
     position: number;
   } | null>(null);
   const pasted = useRef<string | null>(null);
+  const rangeDeletion = useRef(false);
   useLayoutEffect(() => {
     if (caret && document.activeElement === caret.input)
       caret.input.setSelectionRange(caret.position, caret.position);
@@ -70,6 +71,20 @@ export function MoneyInput({
           props.onPaste?.(event);
           pasted.current = event.clipboardData.getData('text');
         }}
+        onSelect={(event) => {
+          const input = event.currentTarget;
+          rangeDeletion.current = input.selectionStart !== input.selectionEnd;
+          props.onSelect?.(event);
+        }}
+        onKeyDown={(event) => {
+          const input = event.currentTarget;
+          rangeDeletion.current = input.selectionStart !== input.selectionEnd;
+          props.onKeyDown?.(event);
+        }}
+        onCut={(event) => {
+          rangeDeletion.current = true;
+          props.onCut?.(event);
+        }}
         onChange={(event) => {
           if (!grouped) {
             onValueChange(event.currentTarget.value);
@@ -82,12 +97,14 @@ export function MoneyInput({
             text: input.value,
             caret: input.selectionStart ?? input.value.length,
             inputType: native.inputType ?? '',
+            rangeDeletion: rangeDeletion.current,
             data:
               native.inputType === 'insertFromPaste'
                 ? pasted.current
                 : native.data,
           });
           pasted.current = null;
+          rangeDeletion.current = false;
           setLastValid(next.display);
           setCaret({ input, position: next.caret });
           onValueChange(next.value);
