@@ -28,13 +28,25 @@ export async function loadReport(storeId: string, from?: string, to?: string) {
       OR: [
         { status: 'PAID', paidAt: { gte: range.start, lt: range.end } },
         { id: { in: ids } },
+        {
+          payments: {
+            some: {
+              amount: { lt: 0 },
+              createdAt: { gte: range.start, lt: range.end },
+            },
+          },
+        },
       ],
     },
     include: {
       items: {
+        orderBy: { id: 'asc' },
         include: { toppings: true, product: { select: { name: true } } },
       },
-      payments: true,
+      payments: {
+        include: { shift: { include: { opener: { select: { name: true } } } } },
+      },
+      refunds: { include: { items: true } },
       shift: { include: { opener: { select: { name: true } } } },
     },
   });

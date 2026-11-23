@@ -72,6 +72,7 @@ export default async function Page({
     ]);
   return initialOrder?.paymentParts.length ? (
     <ShareCheckout
+      key={initialOrder.version}
       order={JSON.parse(JSON.stringify(initialOrder))}
       bank={store}
     />

@@ -44,8 +44,8 @@ export function Reports({ data }: { data: Report }) {
       <header>
         <h1>Báo cáo</h1>
         <p className="mt-1 text-xs text-stone-500">
-          Theo ngày thanh toán · giờ Việt Nam. Chỉ tính đơn đã thanh toán và đã
-          đồng bộ.
+          Tiền hoàn trừ theo ngày hoàn và ca chi. Theo ngày thanh toán · giờ
+          Việt Nam. Chỉ tính đơn đã thanh toán và đã đồng bộ.
         </p>
       </header>
       <form className="report-filters" method="get">

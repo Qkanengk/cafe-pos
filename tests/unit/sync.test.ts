@@ -218,6 +218,15 @@ describe('offline sync transaction', () => {
     expect(mocks.db.orderItem.create).not.toHaveBeenCalled();
     expect(mocks.db.orderItem.deleteMany).not.toHaveBeenCalled();
   });
+  it('replays a synced payment after refunds regardless of ledger ordering', async () => {
+    const input = entry();
+    await syncOrder(actor, input);
+    const order = mocks.orders.get(input.order.id)!;
+    const original = order.payments as Record<string, unknown>[];
+    order.payments = [{ id: 'refund-payment', amount: -10000 }, ...original];
+    await syncOrder(actor, input);
+    expect(mocks.db.payment.create).toHaveBeenCalledTimes(1);
+  });
   it('honors the signed sale-time price even after live catalog prices change', async () => {
     mocks.db.productVariant.findMany.mockResolvedValue([{ id, price: 99000 }]);
     await syncOrder(actor, entry());

@@ -62,6 +62,13 @@ export type SaleOrder = {
     amount: number;
     payment: { id: string } | null;
   }[];
+  refunds?: {
+    id: string;
+    amount: number;
+    reason: string;
+    createdAt: string;
+    items: { itemId: string; quantity: number; amount: number }[];
+  }[];
 };
 export type ShiftView = {
   id: string;

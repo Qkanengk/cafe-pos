@@ -3,9 +3,9 @@ import {
   cartTotal,
   discountAmount,
   lineTotal,
-  sumMoney,
   averageTicket,
   netLineRevenues,
+  sumLedger,
 } from './money';
 export function businessDay(date: Date) {
   return new Intl.DateTimeFormat('en-CA', {
@@ -42,7 +42,17 @@ export type ReportOrder = {
   discountType: 'PERCENT' | 'AMOUNT' | null;
   discountValue: number;
   shift: { id: string; openedAt: Date; opener: { name: string } };
-  payments: { method: string; amount: number }[];
+  payments: {
+    method: string;
+    amount: number;
+    createdAt?: Date;
+    shiftId?: string;
+    shift?: { id: string; openedAt: Date; opener: { name: string } };
+  }[];
+  refunds?: {
+    createdAt: Date;
+    items: { itemId: string; quantity: number; amount: number }[];
+  }[];
   items: {
     id: string;
     productId: string;
@@ -76,7 +86,21 @@ export function buildReport(
       o.paidAt >= range.start &&
       o.paidAt < range.end,
   );
-  const revenue = sumMoney(paid.map((o) => o.total)),
+  const returned = orders.flatMap((order) =>
+    order.payments
+      .filter(
+        (p) =>
+          p.amount < 0 &&
+          p.createdAt &&
+          p.createdAt >= range.start &&
+          p.createdAt < range.end,
+      )
+      .map((payment) => ({ order, payment })),
+  );
+  const revenue = sumLedger([
+      ...paid.map((o) => o.total),
+      ...returned.map((r) => r.payment.amount),
+    ]),
     count = paid.length;
   const days = new Map<string, Bucket>(),
     shifts = new Map<string, Bucket>(),
@@ -90,12 +114,13 @@ export function buildReport(
     key: string,
     label: string,
     amount: number,
+    count = 1,
   ) {
     const prior = map.get(key) ?? { label, revenue: 0, count: 0 };
     map.set(key, {
       label,
-      revenue: sumMoney([prior.revenue, amount]),
-      count: prior.count + 1,
+      revenue: sumLedger([prior.revenue, amount]),
+      count: prior.count + count,
     });
   }
   for (const order of paid) {
@@ -117,13 +142,17 @@ export function buildReport(
         }).format(order.shift.openedAt),
       order.total,
     );
-    for (const p of order.payments)
+    const seenMethods = new Set<string>();
+    for (const p of order.payments.filter((p) => p.amount >= 0)) {
       add(
         methods,
         p.method,
         p.method === 'CASH' ? 'Tiền mặt' : 'Chuyển khoản',
         p.amount,
+        seenMethods.has(p.method) ? 0 : 1,
       );
+      seenMethods.add(p.method);
+    }
     const active = order.items.filter((i) => i.status === 'ACTIVE');
     const lines = active.map((i) => ({
       price: i.priceSnapshot,
@@ -152,10 +181,51 @@ export function buildReport(
       items.set(item.productId, {
         ...prior,
         quantity: prior.quantity + item.quantity,
-        revenue: sumMoney([prior.revenue, net[index]]),
+        revenue: sumLedger([prior.revenue, net[index]]),
       });
     });
   }
+  for (const { order, payment: p } of returned) {
+    const day = businessDay(p.createdAt!);
+    add(days, day, day, p.amount, 0);
+    const shift = p.shift ?? order.shift;
+    add(
+      shifts,
+      p.shiftId ?? order.shiftId,
+      shift.opener.name +
+        ' · ' +
+        shift.openedAt.toLocaleString('vi-VN', {
+          timeZone: 'Asia/Ho_Chi_Minh',
+        }),
+      p.amount,
+      0,
+    );
+    add(
+      methods,
+      p.method,
+      p.method === 'CASH' ? 'Tiền mặt' : 'Chuyển khoản',
+      p.amount,
+      0,
+    );
+  }
+  for (const order of orders)
+    for (const refund of order.refunds ?? [])
+      if (refund.createdAt >= range.start && refund.createdAt < range.end)
+        for (const line of refund.items) {
+          const item = order.items.find((i) => i.id === line.itemId);
+          if (!item) continue;
+          const prior = items.get(item.productId) ?? {
+            id: item.productId,
+            name: item.product?.name ?? item.nameSnapshot,
+            quantity: 0,
+            revenue: 0,
+          };
+          items.set(item.productId, {
+            ...prior,
+            quantity: prior.quantity - line.quantity,
+            revenue: sumLedger([prior.revenue, -line.amount]),
+          });
+        }
   const voids = audits
     .filter(
       (a) =>

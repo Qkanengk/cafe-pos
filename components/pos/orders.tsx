@@ -6,6 +6,7 @@ import type { SaleOrder } from '@/lib/sales-types';
 import { PrintLinks } from './print-links';
 import { OrderTools } from './order-tools';
 import { Dialog } from '@/components/ui/dialog';
+import { RefundControl } from './refund-control';
 export function Orders({
   initial,
   tables,
@@ -243,7 +244,19 @@ export function Orders({
                         {order.note && <p>{order.note}</p>}
                       </div>
                       {order.status === 'PAID' ? (
-                        <PrintLinks id={order.id} />
+                        <>
+                          <PrintLinks id={order.id} />
+                          <RefundControl
+                            order={order}
+                            onChange={(updated) =>
+                              setOrders((current) =>
+                                current.map((o) =>
+                                  o.id === updated.id ? updated : o,
+                                ),
+                              )
+                            }
+                          />
+                        </>
                       ) : order.status === 'OPEN' ? (
                         <>
                           <Link

@@ -1,5 +1,6 @@
 'use client';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 import {
@@ -99,6 +100,7 @@ export function Terminal({
   );
   const [lines, setLines] = useState<Line[]>(() => orderLines(initialOrder));
   const [id, setId] = useState(() => initialOrder?.id ?? crypto.randomUUID());
+  const router = useRouter();
   const [paymentId, setPaymentId] = useState(() => crypto.randomUUID());
   const [cartScope, setCartScope] = useState(
     initialOrder?.id ?? (initialTableId ? 'table:' + initialTableId : 'new'),
@@ -1209,7 +1211,8 @@ export function Terminal({
           onPaid={complete}
           onSplit={(order) => {
             clearWorkingCart(actorId, cartScope, order.id);
-            window.location.href = '/pos?orderId=' + order.id;
+            router.push('/pos?orderId=' + order.id);
+            router.refresh();
           }}
           onClose={() => setPaymentOpen(false)}
         />

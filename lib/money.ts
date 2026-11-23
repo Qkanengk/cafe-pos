@@ -105,15 +105,21 @@ export type PaymentValue = {
 export function paymentTotals(payments: readonly PaymentValue[]) {
   return payments.reduce(
     (totals, payment) => {
-      vnd(payment.amount);
+      sumLedger([payment.amount]);
+      if (payment.amount < 0) {
+        if (payment.method === 'CASH')
+          totals.cash = sumLedger([totals.cash, payment.amount]);
+        else totals.bank = sumLedger([totals.bank, payment.amount]);
+        return totals;
+      }
       if (payment.method === 'BANK_TRANSFER') {
-        totals.bank = vnd(totals.bank + payment.amount);
+        totals.bank = sumLedger([totals.bank, payment.amount]);
       } else {
         const received = vnd(payment.received ?? payment.amount);
         const change = vnd(payment.change ?? 0);
         if (change > received)
           throw new RangeError('Change exceeds received cash');
-        totals.cash = vnd(totals.cash + vnd(received - change));
+        totals.cash = sumLedger([totals.cash, vnd(received - change)]);
       }
       return totals;
     },
@@ -124,10 +130,10 @@ export function expectedCash(
   openingCash: number,
   payments: readonly PaymentValue[],
 ): number {
-  return vnd(vnd(openingCash) + paymentTotals(payments).cash);
+  return sumLedger([vnd(openingCash), paymentTotals(payments).cash]);
 }
 export function shiftDifference(expected: number, counted: number): number {
-  return vnd(counted) - vnd(expected);
+  return sumLedger([vnd(counted), -expected]);
 }
 export function formatVnd(value: number): string {
   if (!Number.isSafeInteger(value)) throw new RangeError('Invalid VND');
@@ -163,12 +169,23 @@ export function allocateDiscount(
 export function sumMoney(values: readonly number[]): number {
   return values.reduce((sum, value) => vnd(sum + vnd(value)), 0);
 }
+export function sumLedger(values: readonly number[]): number {
+  return values.reduce((sum, value) => {
+    if (!Number.isSafeInteger(value) || !Number.isSafeInteger(sum + value))
+      throw new RangeError('Invalid ledger amount');
+    return sum + value;
+  }, 0);
+}
 export function averageTicket(revenue: number, count: number): number {
-  vnd(revenue);
+  sumLedger([revenue]);
   vnd(count);
   return count === 0
     ? 0
-    : Number((BigInt(revenue) * 2n + BigInt(count)) / (BigInt(count) * 2n));
+    : Math.sign(revenue) *
+        Number(
+          (BigInt(Math.abs(revenue)) * 2n + BigInt(count)) /
+            (BigInt(count) * 2n),
+        );
 }
 export function netLineRevenues(
   lines: readonly CartLine[],

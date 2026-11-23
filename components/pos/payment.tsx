@@ -1,5 +1,6 @@
 'use client';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { Banknote, QrCode, CheckCircle2, Delete } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -26,6 +27,7 @@ export function ShareCheckout({
   bank: BankDetails;
   onPaid?: (order: SaleOrder) => void;
 }) {
+  const router = useRouter();
   const [current, setCurrent] = useState(order),
     [selected, setSelected] = useState<string | null>(null),
     [paymentId, setPaymentId] = useState(() => crypto.randomUUID());
@@ -78,7 +80,7 @@ export function ShareCheckout({
           part={part}
           onClose={() => {
             setSelected(null);
-            window.location.href = '/pos?orderId=' + current.id;
+            router.refresh();
           }}
           onPaid={(result) => {
             setCurrent(result);
@@ -107,6 +109,7 @@ export function PaymentDialog({
   part?: { id: string; amount: number; position: number };
   onSplit?: (order: SaleOrder) => void;
 }) {
+  const router = useRouter();
   const amount = part?.amount ?? order.total;
   const [shareCount, setShareCount] = useState('2');
   const [splitId] = useState(() => crypto.randomUUID());
@@ -198,7 +201,25 @@ export function PaymentDialog({
     }
   }
   if (!part && order.paymentParts?.length)
-    return <ShareCheckout order={order} bank={bank} onPaid={onPaid} />;
+    return (
+      <Dialog title="Đơn đã chia đều" onClose={onClose}>
+        <p className="mb-4">
+          Mở các phần đã lưu để tiếp tục thu tiền. Không thu lại toàn bộ hóa
+          đơn.
+        </p>
+        <Button
+          onClick={() => {
+            if (onSplit) onSplit(order);
+            else {
+              router.push('/pos?orderId=' + order.id);
+              router.refresh();
+            }
+          }}
+        >
+          Mở các phần thanh toán
+        </Button>
+      </Dialog>
+    );
   if (existingPaid)
     return (
       <Dialog title="Đơn đã được thanh toán" onClose={onClose}>
@@ -289,7 +310,10 @@ export function PaymentDialog({
                     const result = await response.json();
                     if (!response.ok) throw new Error(result.error);
                     if (onSplit) onSplit(result);
-                    else window.location.href = '/pos?orderId=' + result.id;
+                    else {
+                      router.push('/pos?orderId=' + result.id);
+                      router.refresh();
+                    }
                   } catch (e) {
                     setError(
                       e instanceof Error ? e.message : 'Không thể chia đều',

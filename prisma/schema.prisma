@@ -60,6 +60,7 @@ model Store {
   auditLogs       AuditLog[]
   orderSequences  OrderSequence[]
   paymentParts    PaymentPart[]
+  refunds         Refund[]
 }
 
 model OrderSequence {
@@ -86,6 +87,7 @@ model User {
   orders            Order[]
   auditLogs         AuditLog[]
   confirmedPayments Payment[]
+  approvedRefunds   Refund[]
 
   @@unique([id, storeId])
 }
@@ -173,6 +175,7 @@ model Shift {
   note        String?
   orders      Order[]
   payments    Payment[]
+  refunds     Refund[]
 
   @@unique([id, storeId])
 }
@@ -205,6 +208,7 @@ model Order {
   payments      Payment[]
   splitId       String?       @unique
   paymentParts  PaymentPart[]
+  refunds       Refund[]
 
   @@unique([id, storeId])
   @@unique([storeId, businessDate, dailyNumber])
@@ -229,6 +233,7 @@ model OrderItem {
   status        ItemStatus         @default(ACTIVE)
   voidReason    String?
   toppings      OrderItemTopping[]
+  refunds       RefundLine[]
 
   @@unique([id, storeId])
 }
@@ -254,6 +259,8 @@ model Payment {
   shift       Shift         @relation(fields: [shiftId, storeId], references: [id, storeId])
   partId      String?       @unique
   part        PaymentPart?  @relation(fields: [partId, storeId], references: [id, storeId])
+  refundId    String?       @unique
+  refund      Refund?       @relation(fields: [refundId, storeId], references: [id, storeId])
   order       Order         @relation(fields: [orderId, storeId], references: [id, storeId])
   method      PaymentMethod
   amount      Int
@@ -264,6 +271,7 @@ model Payment {
   createdAt   DateTime      @default(now())
 
   @@unique([partId, storeId])
+  @@unique([refundId, storeId])
   @@index([storeId, createdAt])
 }
 
@@ -279,6 +287,39 @@ model PaymentPart {
 
   @@unique([orderId, position])
   @@unique([id, storeId])
+}
+
+model Refund {
+  id          String       @id
+  storeId     String
+  store       Store        @relation(fields: [storeId], references: [id])
+  orderId     String
+  order       Order        @relation(fields: [orderId, storeId], references: [id, storeId])
+  shiftId     String
+  shift       Shift        @relation(fields: [shiftId, storeId], references: [id, storeId])
+  ownerId     String
+  owner       User         @relation(fields: [ownerId, storeId], references: [id, storeId])
+  amount      Int
+  reason      String
+  requestHash String
+  createdAt   DateTime     @default(now())
+  items       RefundLine[]
+  payment     Payment?
+
+  @@unique([id, storeId])
+}
+
+model RefundLine {
+  id       String    @id @default(uuid())
+  refundId String
+  refund   Refund    @relation(fields: [refundId, storeId], references: [id, storeId])
+  storeId  String
+  itemId   String
+  item     OrderItem @relation(fields: [itemId, storeId], references: [id, storeId])
+  quantity Int
+  amount   Int
+
+  @@unique([refundId, itemId])
 }
 
 model AuditLog {

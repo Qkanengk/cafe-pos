@@ -24,7 +24,7 @@ export async function PrintPage({
     where: { id: user.storeId },
   });
   const width = store.receiptWidth === 58 ? 58 : 80;
-  const payment = order.payments[0];
+  const payment = order.payments.find((p) => p.amount >= 0);
   const confirmer = payment?.confirmedBy
     ? await db.user.findFirst({
         where: { id: payment.confirmedBy, storeId: user.storeId },
@@ -181,6 +181,34 @@ export async function PrintPage({
                   </div>
                 ))}
             </dl>
+            {order.refunds.length > 0 && (
+              <section className="border-t border-dashed border-black py-3">
+                <h3 className="font-bold">HOÀN TIỀN</h3>
+                {order.refunds.map((r) => (
+                  <div key={r.id} className="py-1">
+                    <p>
+                      -{formatVnd(r.amount)} · {r.reason}
+                    </p>
+                    {r.items.map((line) => (
+                      <p key={line.id}>
+                        {
+                          order.items.find((i) => i.id === line.itemId)
+                            ?.nameSnapshot
+                        }{' '}
+                        × {line.quantity} · {formatVnd(line.amount)}
+                      </p>
+                    ))}
+                  </div>
+                ))}
+                <p className="font-bold">
+                  Thực thu sau hoàn:{' '}
+                  {formatVnd(
+                    order.total -
+                      order.refunds.reduce((s, r) => s + r.amount, 0),
+                  )}
+                </p>
+              </section>
+            )}
             {confirmer && (
               <p className="mt-3">Người xác nhận: {confirmer.name}</p>
             )}

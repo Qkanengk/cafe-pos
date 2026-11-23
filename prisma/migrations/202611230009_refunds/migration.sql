@@ -1,0 +1,17 @@
+CREATE TABLE "Refund"("id" TEXT NOT NULL,"storeId" TEXT NOT NULL,"orderId" TEXT NOT NULL,"shiftId" TEXT NOT NULL,"ownerId" TEXT NOT NULL,"amount" INTEGER NOT NULL CHECK("amount">0),"reason" TEXT NOT NULL,"requestHash" TEXT NOT NULL,"createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,CONSTRAINT "Refund_pkey" PRIMARY KEY("id"));
+CREATE UNIQUE INDEX "Refund_id_storeId_key" ON "Refund"("id","storeId");
+ALTER TABLE "Refund" ADD CONSTRAINT "Refund_storeId_fkey" FOREIGN KEY("storeId") REFERENCES "Store"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Refund" ADD CONSTRAINT "Refund_orderId_storeId_fkey" FOREIGN KEY("orderId","storeId") REFERENCES "Order"("id","storeId") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Refund" ADD CONSTRAINT "Refund_shiftId_storeId_fkey" FOREIGN KEY("shiftId","storeId") REFERENCES "Shift"("id","storeId") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Refund" ADD CONSTRAINT "Refund_ownerId_storeId_fkey" FOREIGN KEY("ownerId","storeId") REFERENCES "User"("id","storeId") ON DELETE RESTRICT ON UPDATE CASCADE;
+CREATE TABLE "RefundLine"("id" TEXT NOT NULL,"storeId" TEXT NOT NULL,"refundId" TEXT NOT NULL,"itemId" TEXT NOT NULL,"quantity" INTEGER NOT NULL CHECK("quantity">0),"amount" INTEGER NOT NULL CHECK("amount">=0),CONSTRAINT "RefundLine_pkey" PRIMARY KEY("id"));
+CREATE UNIQUE INDEX "RefundLine_refundId_itemId_key" ON "RefundLine"("refundId","itemId");
+ALTER TABLE "RefundLine" ADD CONSTRAINT "RefundLine_refundId_storeId_fkey" FOREIGN KEY("refundId","storeId") REFERENCES "Refund"("id","storeId") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "RefundLine" ADD CONSTRAINT "RefundLine_itemId_storeId_fkey" FOREIGN KEY("itemId","storeId") REFERENCES "OrderItem"("id","storeId") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Payment" ADD COLUMN "refundId" TEXT;
+CREATE UNIQUE INDEX "Payment_refundId_key" ON "Payment"("refundId");
+CREATE UNIQUE INDEX "Payment_refundId_storeId_key" ON "Payment"("refundId","storeId");
+ALTER TABLE "Payment" ADD CONSTRAINT "Payment_refundId_storeId_fkey" FOREIGN KEY("refundId","storeId") REFERENCES "Refund"("id","storeId") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Payment" ADD CONSTRAINT "Payment_refund_sign_check" CHECK(("refundId" IS NULL AND "amount">=0)OR("refundId" IS NOT NULL AND "amount"<0));
+ALTER TABLE "Payment" ADD CONSTRAINT "Payment_part_refund_check" CHECK("partId" IS NULL OR "refundId" IS NULL);
+CREATE UNIQUE INDEX "Payment_full_order_key" ON "Payment"("orderId") WHERE "partId" IS NULL AND "refundId" IS NULL;

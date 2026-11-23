@@ -30,6 +30,72 @@ const order: ReportOrder = {
   items: [item],
 };
 describe('owner reports', () => {
+  it('sums mixed share payments but counts each bill once within each method', () => {
+    const data = buildReport(
+      [
+        {
+          ...order,
+          payments: [
+            { method: 'CASH', amount: 20000 },
+            { method: 'BANK_TRANSFER', amount: 10000 },
+            { method: 'BANK_TRANSFER', amount: 24000 },
+          ],
+        },
+      ],
+      [],
+      [],
+      range,
+    );
+    expect(data.count).toBe(1);
+    expect(data.revenue).toBe(54000);
+    expect(data.methods).toContainEqual({
+      id: 'CASH',
+      label: 'Tiền mặt',
+      revenue: 20000,
+      count: 1,
+    });
+    expect(data.methods).toContainEqual({
+      id: 'BANK_TRANSFER',
+      label: 'Chuyển khoản',
+      revenue: 34000,
+      count: 1,
+    });
+  });
+  it('subtracts refunds on their actual date, method and payout shift without rewriting the original sale', () => {
+    const at = new Date('2026-11-23T01:00:00Z'),
+      refund = {
+        method: 'CASH',
+        amount: -27000,
+        createdAt: at,
+        shiftId: 'refund-shift',
+        shift: { id: 'refund-shift', openedAt: at, opener: { name: 'Owner' } },
+      };
+    const record = {
+      ...order,
+      payments: [...order.payments, refund],
+      refunds: [
+        {
+          createdAt: at,
+          items: [{ itemId: item.id, quantity: 1, amount: 27000 }],
+        },
+      ],
+    };
+    const same = buildReport([record], [], [], range);
+    expect(same).toMatchObject({ revenue: 27000, count: 1, average: 27000 });
+    expect(same.methods[0].revenue).toBe(27000);
+    expect(same.topQuantity[0]).toMatchObject({ quantity: 1, revenue: 27000 });
+    const later = buildReport(
+      [{ ...record, paidAt: new Date('2026-11-21T01:00:00Z') }],
+      [],
+      [],
+      range,
+    );
+    expect(later).toMatchObject({ revenue: -27000, count: 0, average: 0 });
+    expect(later.shifts[0]).toMatchObject({
+      id: 'refund-shift',
+      revenue: -27000,
+    });
+  });
   it('groups renamed products by identity and shows their current name', () => {
     const first = {
       ...order,
@@ -172,6 +238,7 @@ describe('owner reports', () => {
     expect(() => netLineRevenues([], 1)).toThrow();
     expect(averageTicket(5, 2)).toBe(3);
     expect(averageTicket(0, 0)).toBe(0);
-    expect(() => averageTicket(-1, 1)).toThrow();
+    expect(averageTicket(-1, 1)).toBe(-1);
+    expect(averageTicket(-4, 3)).toBe(-1);
   });
 });

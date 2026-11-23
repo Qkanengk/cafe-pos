@@ -32,7 +32,6 @@ test.describe('Cafe POS · Definition of Done (fresh DB)', () => {
     ).toEqual({ orders: 0, shifts: 0, stores: 1, products: 20 });
   });
   for (const [name, script] of [
-    ['Equal-share cash/QR payments and paid-bill refunds', 'finance-check.mjs'],
     [
       'Owner admin CRUD, cashier authorization and responsive menu',
       'admin-check.mjs',
@@ -49,6 +48,7 @@ test.describe('Cafe POS · Definition of Done (fresh DB)', () => {
       'Offline five cash sales → durable queue → retry/sync/replay → close shift → owner reports',
       'offline-check.mjs',
     ],
+    ['Equal-share cash/QR payments and paid-bill refunds', 'finance-check.mjs'],
   ]) {
     test(name, async ({ browserName }, testInfo) => {
       expect(browserName).toBe('chromium');

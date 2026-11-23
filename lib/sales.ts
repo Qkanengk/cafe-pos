@@ -16,6 +16,7 @@ import { auditDiscount } from './discount-audit';
 export const orderInclude = {
   items: { include: { toppings: true }, orderBy: { id: 'asc' } },
   payments: true,
+  refunds: { include: { items: true }, orderBy: { createdAt: 'asc' } },
   paymentParts: { include: { payment: true }, orderBy: { position: 'asc' } },
   creator: { select: { name: true } },
   table: { select: { name: true, area: true } },

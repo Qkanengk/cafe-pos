@@ -30,6 +30,11 @@ export async function syncOrder(
       where: { id: entry.order.id },
       include: orderInclude,
     });
+    if (existing?.paymentParts?.length)
+      throw new HttpError(
+        'Đơn đã chia đều. Hoàn tất từng phần trên máy chủ; không đồng bộ bản thanh toán ngoại tuyến cho đơn này.',
+        409,
+      );
     const unconfirmed =
       !existing?.paymentParts?.length &&
       existing?.status === 'OPEN' &&
@@ -43,7 +48,9 @@ export async function syncOrder(
         existing.storeId !== actor.storeId ||
         existing.createdBy !== actor.id ||
         existing.requestHash !== hash ||
-        existing.payments[0]?.id !== entry.paymentId
+        !existing.payments.some(
+          (p) => p.id === entry.paymentId && p.amount >= 0,
+        )
       )
         throw new HttpError(
           'UUID đã dùng với nội dung khác. Đơn máy chủ đã được sửa/thanh toán hoặc không khớp đơn trên thiết bị. Không thu thêm tiền; mở Đơn hàng để đối chiếu. Đơn vẫn được giữ trên thiết bị.',
