@@ -1,5 +1,6 @@
 'use client';
 import { useState, type InputHTMLAttributes } from 'react';
+import { flushSync } from 'react-dom';
 import { Input } from './input';
 import { parseVndInput } from '@/lib/money';
 type Props = Omit<
@@ -29,7 +30,7 @@ export function MoneyInput({
       inputMode="numeric"
       value={display}
       aria-invalid={String(value) !== '' && !Number.isFinite(amount)}
-      onFocus={() => setFocused(true)}
+      onFocus={() => flushSync(() => setFocused(true))}
       onBlur={() => setFocused(false)}
       onChange={(e) => onValueChange(e.target.value)}
     />
