@@ -554,6 +554,37 @@ select {
 .admin-identity h2 {
   line-height: 1.4;
 }
+.ticket-footer > div:has(> #discount) {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) 48px;
+  gap: 8px;
+  align-items: center;
+}
+.ticket-footer [for='discount'] {
+  white-space: nowrap;
+  font-size: 12px;
+}
+.ticket-footer #discount {
+  min-width: 0;
+  width: 100%;
+  height: 36px;
+  min-height: 36px;
+}
+.ticket-footer select {
+  height: 36px;
+  min-height: 36px;
+  border-radius: 6px;
+}
+.register button.rounded-full {
+  border-radius: 6px;
+}
+.register dialog button.sticky {
+  min-height: 48px;
+}
+.login-form input::placeholder {
+  font-size: 13px;
+  letter-spacing: normal;
+}
 .login-page {
   display: grid;
   place-items: center;
