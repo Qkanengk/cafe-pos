@@ -46,6 +46,7 @@ export type ReportOrder = {
   items: {
     id: string;
     productId: string;
+    product?: { name: string } | null;
     nameSnapshot: string;
     quantity: number;
     priceSnapshot: number;
@@ -142,7 +143,9 @@ export function buildReport(
     active.forEach((item, index) => {
       const prior = items.get(item.productId) ?? {
         id: item.productId,
-        name: item.nameSnapshot.split(' · ').slice(0, -1).join(' · '),
+        name:
+          item.product?.name ??
+          item.nameSnapshot.split(' · ').slice(0, -1).join(' · '),
         quantity: 0,
         revenue: 0,
       };

@@ -30,6 +30,34 @@ const order: ReportOrder = {
   items: [item],
 };
 describe('owner reports', () => {
+  it('groups renamed products by identity and shows their current name', () => {
+    const first = {
+      ...order,
+      items: [{ ...item, product: { name: 'Cà phê mới' } }],
+    };
+    const second = {
+      ...order,
+      id: 'second',
+      items: [
+        {
+          ...item,
+          nameSnapshot: 'Tên khác · L',
+          product: { name: 'Cà phê mới' },
+        },
+      ],
+    };
+    const data = buildReport([first, second], [], [], range);
+    expect(data.topQuantity).toEqual([
+      { id: 'product', name: 'Cà phê mới', quantity: 4, revenue: 108000 },
+    ]);
+    const other = {
+      ...second,
+      items: [{ ...second.items[0], productId: 'other' }],
+    };
+    expect(buildReport([first, other], [], [], range).topQuantity).toHaveLength(
+      2,
+    );
+  });
   it('reports paid revenue by Vietnam day, original shift, method and discounted item', () => {
     const data = buildReport(
       [order, { ...order, id: 'ignored', status: 'CANCELLED' }],

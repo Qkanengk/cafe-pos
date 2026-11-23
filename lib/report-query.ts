@@ -31,7 +31,9 @@ export async function loadReport(storeId: string, from?: string, to?: string) {
       ],
     },
     include: {
-      items: { include: { toppings: true } },
+      items: {
+        include: { toppings: true, product: { select: { name: true } } },
+      },
       payments: true,
       shift: { include: { opener: { select: { name: true } } } },
     },
