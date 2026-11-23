@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Coffee,
   Search,
@@ -18,6 +18,7 @@ import { Dialog } from '@/components/ui/dialog';
 import { PaymentDialog } from './payment';
 import { PrintLinks } from './print-links';
 import { OrderTools } from './order-tools';
+import { prepareLocal, syncedCode } from '@/lib/offline';
 import {
   cartTotal,
   lineTotal,
@@ -51,6 +52,7 @@ type Props = {
   hasShift: boolean;
   initialOrder?: SaleOrder;
   initialTableId?: string;
+  offlineMode?: boolean;
 };
 function orderLines(order?: SaleOrder): Line[] {
   return (
@@ -83,6 +85,7 @@ export function Terminal({
   hasShift,
   initialOrder,
   initialTableId,
+  offlineMode = false,
 }: Props) {
   const router = useRouter();
   const [lines, setLines] = useState<Line[]>(() => orderLines(initialOrder));
@@ -107,6 +110,27 @@ export function Terminal({
   );
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [paid, setPaid] = useState<SaleOrder | null>(null);
+  useEffect(() => {
+    if (!paid?.code.startsWith('TAM-')) return;
+    let active = true;
+    const id = paid.id;
+    const update = () => {
+      void syncedCode(id)
+        .then((code) => {
+          if (active && code)
+            setPaid((current) =>
+              current?.id === id ? { ...current, code } : current,
+            );
+        })
+        .catch(() => {});
+    };
+    update();
+    window.addEventListener('cafe-offline-change', update);
+    return () => {
+      active = false;
+      window.removeEventListener('cafe-offline-change', update);
+    };
+  }, [paid]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -233,6 +257,28 @@ export function Terminal({
     setBusy(true);
     setError('');
     try {
+      if (
+        offlineMode ||
+        !navigator.onLine ||
+        prepared?.code.startsWith('TAM-')
+      ) {
+        if (prepared && !prepared.code.startsWith('TAM-'))
+          throw new Error(
+            'Đơn máy chủ cần có mạng để sửa. Hãy tạo đơn mới khi ngoại tuyến.',
+          );
+        const localInput = {
+          ...input.data,
+          lines: input.data.lines.map((line) => ({
+            ...line,
+            itemId: undefined,
+          })),
+        };
+        const order = await prepareLocal(localInput);
+        load(order);
+        setNotice(hold ? 'Đã giữ trên thiết bị · ' + order.code : '');
+        if (!hold) setPaymentOpen(true);
+        return;
+      }
       const response = await fetch(
         prepared ? '/api/orders/' + id : '/api/orders',
         {
@@ -358,7 +404,14 @@ export function Terminal({
               {formatVnd(paid.total)}
             </p>
           </div>
-          <PrintLinks id={paid.id} />
+          {paid.code.startsWith('TAM-') ? (
+            <p className="text-sm">
+              Đã lưu thanh toán trên thiết bị. Chờ đồng bộ để nhận mã chính thức
+              và in lại ở Đơn hàng.
+            </p>
+          ) : (
+            <PrintLinks id={paid.id} />
+          )}
         </section>
       )}
       <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_380px] lg:grid-cols-[minmax(0,1fr)_340px]">

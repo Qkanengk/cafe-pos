@@ -2,7 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { COOKIE_NAME, verifySession, ownerOnly } from './lib/session';
 export async function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
-  if (path === '/login' || path.startsWith('/api/auth/'))
+  if (
+    path === '/login' ||
+    path.startsWith('/api/auth/') ||
+    path === '/sw.js' ||
+    path === '/manifest.webmanifest' ||
+    path.startsWith('/icons/')
+  )
     return NextResponse.next();
   const session = await verifySession(request.cookies.get(COOKIE_NAME)?.value);
   if (!session)

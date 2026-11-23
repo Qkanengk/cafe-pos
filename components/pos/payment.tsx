@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Dialog } from '@/components/ui/dialog';
 import { cashSuggestions, changeDue, formatVnd } from '@/lib/money';
 import { renderVietQR } from '@/lib/vietqr';
+import { payLocal } from '@/lib/offline';
 import type { SaleOrder, BankDetails } from '@/lib/sales-types';
 export function PaymentDialog({
   order,
@@ -56,6 +57,17 @@ export function PaymentDialog({
     setBusy(true);
     setError('');
     try {
+      if (order.code.startsWith('TAM-')) {
+        onPaid(
+          await payLocal(
+            order,
+            method === 'CASH'
+              ? { method, received: Number(received) }
+              : { method, confirmed: true },
+          ),
+        );
+        return;
+      }
       const response = await fetch('/api/orders/' + order.id + '/pay', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

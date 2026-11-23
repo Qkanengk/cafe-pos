@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { Armchair } from 'lucide-react';
 import { formatVnd, sumMoney } from '@/lib/money';
 type Table = {
@@ -36,7 +35,7 @@ export function Tables({ tables }: { tables: Table[] }) {
                       : 'border-stone-200 bg-white')
                   }
                 >
-                  <Link
+                  <a
                     href={
                       table.orders.length
                         ? '/pos?orderId=' + table.orders[0].id
@@ -52,17 +51,17 @@ export function Tables({ tables }: { tables: Table[] }) {
                     <strong className="block text-xl">
                       {formatVnd(sumMoney(table.orders.map((o) => o.total)))}
                     </strong>
-                  </Link>
+                  </a>
                   {table.orders.length > 1 && (
                     <div className="mt-3 space-y-2 border-t border-emerald-200 pt-3">
                       {table.orders.map((o) => (
-                        <Link
+                        <a
                           key={o.id}
                           className="block min-h-11 text-sm font-semibold underline"
                           href={'/pos?orderId=' + o.id}
                         >
                           {o.code} · {formatVnd(o.total)}
-                        </Link>
+                        </a>
                       ))}
                     </div>
                   )}

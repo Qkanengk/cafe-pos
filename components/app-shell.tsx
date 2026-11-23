@@ -3,6 +3,7 @@ import { Coffee } from 'lucide-react';
 import { requireUser } from '@/lib/auth';
 import { navigation } from '@/lib/navigation';
 import { db } from '@/lib/db';
+import { OfflineStatus } from './offline-status';
 export async function AppShell({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
   const store = await db.store.findUniqueOrThrow({
@@ -18,6 +19,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
           <Coffee size={24} aria-hidden="true" /> {store.name}
         </Link>
         <div className="flex items-center gap-5">
+          <OfflineStatus />
           <span className="text-sm">
             {user.name} · {user.role === 'OWNER' ? 'Chủ quán' : 'Thu ngân'}
           </span>
@@ -34,13 +36,13 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
           {navigation
             .filter((item) => !item.owner || user.role === 'OWNER')
             .map((item) => (
-              <Link
+              <a
                 className="rounded-xl px-4 py-3 font-medium hover:bg-emerald-100"
                 href={item.href}
                 key={item.href}
               >
                 {item.label}
-              </Link>
+              </a>
             ))}
         </nav>
         <main className="min-w-0">{children}</main>
