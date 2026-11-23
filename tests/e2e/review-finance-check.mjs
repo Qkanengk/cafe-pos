@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
+import { mkdir } from 'node:fs/promises';
 import { chromium, expect } from '@playwright/test';
 const baseURL = process.env.BASE_URL ?? 'http://localhost:3000';
 const browser = await chromium.launch({
@@ -22,6 +23,8 @@ async function api(path, method = 'GET', data, status = 200) {
   return body;
 }
 try {
+  const shots = process.env.SCREENSHOT_DIR ?? '/home/ubuntu/shots/retest';
+  await mkdir(shots, { recursive: true });
   await api('/api/auth/login', 'POST', {
     mode: 'password',
     email: 'owner@cafe.local',
@@ -72,6 +75,8 @@ try {
       .getByLabel('Lý do', { exact: true })
       .fill('Khách về, miễn phần chưa thu');
     await page.getByLabel('PIN chủ quán', { exact: true }).fill('1111');
+    if (collect)
+      await page.screenshot({ path: shots + '/cancel-unpaid-shares.png' });
     await page
       .getByRole('button', {
         name: 'Xác nhận ' + label.toLocaleLowerCase('vi'),
@@ -156,6 +161,7 @@ try {
   await expect(page.getByLabel('PIN chủ quán', { exact: true })).toHaveValue(
     '',
   );
+  await page.screenshot({ path: shots + '/stale-refund-conflict.png' });
   assert.equal((await api('/api/orders/' + order.id)).refunds.length, 1);
   await api(
     '/api/orders/' + order.id + '/refunds',
@@ -181,6 +187,15 @@ try {
     current.refunds.reduce((s, r) => s + r.amount, 0),
     order.total,
   );
+  await page.getByRole('button', { name: 'Đóng', exact: true }).click();
+  const methods = page
+    .getByRole('row')
+    .filter({ hasText: order.code })
+    .locator('td')
+    .nth(5);
+  await expect(methods).toContainText('Tiền mặt');
+  await expect(methods).not.toContainText('Chuyển khoản');
+  await expect(methods.getByText(/^Đã hoàn /)).toBeVisible();
   await api('/api/shifts', 'PUT', {
     id: shift.id,
     countedCash: 100000 + order.total,

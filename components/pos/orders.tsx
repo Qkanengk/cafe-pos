@@ -7,6 +7,24 @@ import { PrintLinks } from './print-links';
 import { OrderTools } from './order-tools';
 import { Dialog } from '@/components/ui/dialog';
 import { RefundControl } from './refund-control';
+import { orderPaymentSummary } from '@/lib/order-payment-summary';
+function SalePayments({ payments }: { payments: SaleOrder['payments'] }) {
+  const summary = orderPaymentSummary(payments);
+  return (
+    <>
+      <div>
+        {summary.methods
+          .map((method) => (method === 'CASH' ? 'Tiền mặt' : 'Chuyển khoản'))
+          .join(', ') || '—'}
+      </div>
+      {summary.refunded > 0 && (
+        <p className="text-xs text-amber-800">
+          Đã hoàn {formatVnd(summary.refunded)}
+        </p>
+      )}
+    </>
+  );
+}
 export function Orders({
   initial,
   tables,
@@ -153,13 +171,7 @@ export function Orders({
                   {formatVnd(order.total)}
                 </td>
                 <td>
-                  {order.payments.length
-                    ? order.payments
-                        .map((p) =>
-                          p.method === 'CASH' ? 'Tiền mặt' : 'Chuyển khoản',
-                        )
-                        .join(', ')
-                    : '—'}
+                  <SalePayments payments={order.payments} />
                 </td>
                 <td>
                   <span
