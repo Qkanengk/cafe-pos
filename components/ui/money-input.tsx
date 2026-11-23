@@ -1,5 +1,9 @@
 'use client';
-import { useState, type InputHTMLAttributes } from 'react';
+import {
+  useState,
+  useSyncExternalStore,
+  type InputHTMLAttributes,
+} from 'react';
 import { Input } from './input';
 import { parseVndInput, normalizeVndEditing } from '@/lib/money';
 type Props = Omit<
@@ -10,12 +14,18 @@ type Props = Omit<
   onValueChange: (value: string) => void;
   grouped?: boolean;
 };
+const subscribeToHydration = () => () => {};
 export function MoneyInput({
   value,
   onValueChange,
   grouped = true,
   ...props
 }: Props) {
+  const interactive = useSyncExternalStore(
+    subscribeToHydration,
+    () => true,
+    () => false,
+  );
   const [editing, setEditing] = useState<string | null>(null);
   const amount = parseVndInput(value);
   const display =
@@ -25,6 +35,7 @@ export function MoneyInput({
   return (
     <Input
       {...props}
+      disabled={props.disabled || !interactive}
       type="text"
       inputMode="numeric"
       value={editing ?? display}

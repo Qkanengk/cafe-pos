@@ -124,6 +124,53 @@ try {
     'PASS cashier PIN login; UI and server refuse selling without an open shift; empty order=400',
   );
   await page.getByRole('link', { name: 'Ca làm việc', exact: true }).click();
+  const cold = await browser.newContext({
+    baseURL,
+    storageState: await cashier.storageState(),
+  });
+  let release;
+  const boot = new Promise((resolve) => {
+    release = resolve;
+  });
+  try {
+    await cold.route('**/_next/static/**/*.js', async (route) => {
+      await boot;
+      await route.continue();
+    });
+    let payload;
+    await cold.route('**/api/shifts', async (route) => {
+      if (route.request().method() === 'POST') {
+        payload = route.request().postDataJSON();
+        await route.fulfill({
+          status: 409,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            error: 'Kiểm tra nhập tiền trước hydration: không lưu ca',
+          }),
+        });
+      } else await route.continue();
+    });
+    const early = await cold.newPage();
+    await early.goto('/shifts', { waitUntil: 'commit' });
+    const money = early.getByLabel('Tiền đầu ca', { exact: true });
+    await expect(money).toBeDisabled();
+    release();
+    await expect(money).toBeEnabled();
+    await money.fill('200000');
+    await early.getByRole('button', { name: 'Mở ca', exact: true }).click();
+    await expect(
+      early.getByText('Kiểm tra nhập tiền trước hydration: không lưu ca', {
+        exact: true,
+      }),
+    ).toBeVisible();
+    assert.equal(payload.openingCash, 200000);
+    console.log(
+      'PASS money hydration: server-rendered currency input cannot accept lost edits before handlers attach; first edit submits 200000, not default 500000',
+    );
+  } finally {
+    release();
+    await cold.close();
+  }
   await page.getByLabel('Tiền đầu ca', { exact: true }).fill('200000');
   await page.getByRole('button', { name: 'Mở ca', exact: true }).click();
   await expect(page.getByTestId('expected-cash')).toHaveText(fmt(200000));
