@@ -8,10 +8,18 @@ vi.mock('bcryptjs', () => ({
   hashSync: () => 'dummy-hash',
 }));
 import { authenticateLogin } from '../../lib/login';
-import { PinLimiter, pinLimiter, clientIP } from '../../lib/pin-limit';
+import {
+  PinLimiter,
+  pinLimiter,
+  ownerPinLimiter,
+  invalidPinLimiter,
+  clientIP,
+} from '../../lib/pin-limit';
 beforeEach(() => {
   vi.resetAllMocks();
   pinLimiter.clear();
+  ownerPinLimiter.clear();
+  invalidPinLimiter.clear();
   mocks.findUnique.mockResolvedValue({
     id: 'u',
     role: 'CASHIER',
@@ -125,10 +133,48 @@ describe('PIN protection', () => {
       'x-real-ip': '1.1.1.1',
     });
     vi.stubEnv('TRUST_PROXY', '');
-    expect(clientIP(headers)).toBe('direct');
+    expect(clientIP(headers)).toBeUndefined();
     expect(clientIP(headers, '127.0.0.1')).toBe('127.0.0.1');
     vi.stubEnv('TRUST_PROXY', 'true');
     expect(clientIP(headers)).toBe('8.8.8.8');
     vi.unstubAllEnvs();
+  });
+  it('does not let direct callers lock unrelated users or owner approvals', async () => {
+    for (let i = 0; i < 5; i++)
+      await authenticateLogin({ mode: 'pin', userId: 'u', pin: '9999' });
+    mocks.findUnique.mockResolvedValue({
+      id: 'other',
+      role: 'CASHIER',
+      isActive: true,
+      pinHash: 'hash',
+    });
+    mocks.compare.mockResolvedValue(true);
+    await expect(
+      authenticateLogin({ mode: 'pin', userId: 'other', pin: '2222' }),
+    ).resolves.toMatchObject({ id: 'other' });
+    expect(ownerPinLimiter.reserve(['u'])).toBeTypeOf('function');
+  });
+  it('bounds fake bcrypt work without a trusted source address and does not block real staff', async () => {
+    mocks.findUnique.mockResolvedValue(null);
+    for (let i = 0; i < 20; i++)
+      await authenticateLogin({
+        mode: 'pin',
+        userId: 'missing-' + i,
+        pin: '0000',
+      });
+    await expect(
+      authenticateLogin({ mode: 'pin', userId: 'extra', pin: '0000' }),
+    ).rejects.toMatchObject({ status: 429 });
+    expect(mocks.compare).toHaveBeenCalledTimes(20);
+    mocks.findUnique.mockResolvedValue({
+      id: 'active',
+      role: 'CASHIER',
+      isActive: true,
+      pinHash: 'hash',
+    });
+    mocks.compare.mockResolvedValue(true);
+    await expect(
+      authenticateLogin({ mode: 'pin', userId: 'active', pin: '2222' }),
+    ).resolves.toMatchObject({ id: 'active' });
   });
 });

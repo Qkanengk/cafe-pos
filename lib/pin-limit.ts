@@ -43,13 +43,15 @@ export class PinLimiter {
   }
 }
 export const pinLimiter = new PinLimiter();
+export const ownerPinLimiter = new PinLimiter();
+export const invalidPinLimiter = new PinLimiter(1);
 export const pinLockMessage =
   'Thử PIN quá nhiều lần. Vui lòng chờ 15 phút rồi thử lại.';
 export function clientIP(headers: Headers, socketAddress?: string) {
-  if (process.env.TRUST_PROXY !== 'true') return socketAddress || 'direct';
+  if (process.env.TRUST_PROXY !== 'true') return socketAddress;
   return (
     headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
     headers.get('x-real-ip') ||
-    'local'
-  ).slice(0, 64);
+    socketAddress
+  )?.slice(0, 64);
 }

@@ -37,7 +37,7 @@ import {
   checkVersion,
 } from '../../lib/order-management';
 import { checkoutSchema } from '../../lib/sales-validation';
-import { pinLimiter } from '../../lib/pin-limit';
+import { ownerPinLimiter } from '../../lib/pin-limit';
 const id = '7ff9e456-8548-4f88-9c18-1d2b655de2ce';
 const itemId = '8ff9e456-8548-4f88-9c18-1d2b655de2ce';
 const otherItemId = '9ff9e456-8548-4f88-9c18-1d2b655de2ce';
@@ -95,7 +95,7 @@ function fixture() {
 }
 let state = fixture();
 beforeEach(() => {
-  pinLimiter.clear();
+  ownerPinLimiter.clear();
   vi.resetAllMocks();
   state = fixture();
   mocks.db.$transaction.mockImplementation(async (fn) => fn(mocks.db));

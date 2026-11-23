@@ -4,7 +4,7 @@ import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { db } from './db';
 import { HttpError } from './api';
-import { pinLimiter, pinLockMessage } from './pin-limit';
+import { ownerPinLimiter, pinLockMessage } from './pin-limit';
 import { lockStore, nextOrderCode, orderInclude } from './sales';
 import { editOrderSchema, operationSchema } from './sales-validation';
 import { cartTotal, discountAmount, allocateDiscount, sumMoney } from './money';
@@ -261,9 +261,9 @@ export async function operateOrder(
         where: { storeId: actor.storeId, role: 'OWNER', isActive: true },
         select: { id: true, pinHash: true },
       });
-      const success = pinLimiter.reserve(
+      const success = ownerPinLimiter.reserve(
         owners.map((owner) => owner.id),
-        actor.ip ?? 'local',
+        actor.ip,
       );
       if (!success) throw new HttpError(pinLockMessage, 429);
       let ownerId: string | undefined;
