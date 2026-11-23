@@ -51,7 +51,7 @@ beforeEach(() => {
       productId: 'product',
       name: 'M',
       price: 30000,
-      product: { name: 'Latte', isAvailable: true },
+      product: { name: 'Latte', isAvailable: true, toppings: [{ id }] },
     },
   ]);
   mocks.db.topping.findMany.mockResolvedValue([
@@ -69,6 +69,21 @@ beforeEach(() => {
   });
 });
 describe('server sales', () => {
+  it('rejects toppings not attached to the selected product', async () => {
+    mocks.db.productVariant.findMany.mockResolvedValueOnce([
+      {
+        id,
+        productId: 'cake',
+        name: 'Phần',
+        price: 29000,
+        product: { name: 'Cake', isAvailable: true, toppings: [] },
+      },
+    ]);
+    await expect(prepareOrder(actor, input)).rejects.toThrow(
+      'Topping không dùng cho món này',
+    );
+    expect(mocks.db.order.create).not.toHaveBeenCalled();
+  });
   it('audits an applied discount when collecting payment', async () => {
     mocks.db.order.findFirst.mockResolvedValue({
       id,

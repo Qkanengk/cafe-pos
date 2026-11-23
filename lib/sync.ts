@@ -77,6 +77,11 @@ export async function syncOrder(
       if (!product?.isAvailable || !variant)
         throw new HttpError('Món không có trong thực đơn đã lưu', 409);
       const selected = line.toppingIds.map((id) => {
+        if (product.toppings && !product.toppings.some((t) => t.id === id))
+          throw new HttpError(
+            'Topping không dùng cho món này trong thực đơn đã lưu',
+            400,
+          );
         const topping = catalog.toppings.find(
           (t) => t.id === id && t.isAvailable,
         );

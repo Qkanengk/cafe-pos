@@ -6,6 +6,7 @@ export type MenuProduct = {
   imageUrl: string | null;
   isAvailable: boolean;
   variants: MenuVariant[];
+  toppings?: { id: string }[];
 };
 export type MenuTopping = {
   id: string;

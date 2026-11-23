@@ -35,6 +35,7 @@ export const productSchema = z.object({
   categoryId: id,
   sortOrder,
   isAvailable: z.boolean(),
+  toppingIds: z.array(id).max(100).default([]),
   imageUrl: z
     .union([
       z.literal(''),

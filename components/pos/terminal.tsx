@@ -1050,41 +1050,51 @@ export function Terminal({
             <fieldset>
               <legend className="mb-3 font-semibold">Thêm topping</legend>
               <div className="grid grid-cols-2 gap-2">
-                {toppings.map((topping) => (
-                  <label
-                    className={
-                      'flex min-h-12 items-center gap-2 rounded-xl border border-stone-200 p-3 text-sm ' +
-                      (!topping.isAvailable ? 'opacity-40' : '')
-                    }
-                    key={topping.id}
-                  >
-                    <input
-                      aria-label={topping.name}
-                      type="checkbox"
-                      disabled={!topping.isAvailable || !!editor.snapshot}
-                      checked={editor.toppingIds.includes(topping.id)}
-                      onChange={(e) =>
-                        setEditor({
-                          ...editor,
-                          toppingIds: e.target.checked
-                            ? [...editor.toppingIds, topping.id]
-                            : editor.toppingIds.filter(
-                                (id) => id !== topping.id,
-                              ),
-                        })
+                {toppings
+                  .filter((t) => {
+                    const product = products.find(
+                      (p) => p.id === editor.productId,
+                    );
+                    return (
+                      !product?.toppings ||
+                      product.toppings.some((allowed) => allowed.id === t.id)
+                    );
+                  })
+                  .map((topping) => (
+                    <label
+                      className={
+                        'flex min-h-12 items-center gap-2 rounded-xl border border-stone-200 p-3 text-sm ' +
+                        (!topping.isAvailable ? 'opacity-40' : '')
                       }
-                      className="h-5 w-5 shrink-0 accent-emerald-800"
-                    />
-                    <span>
-                      {topping.name}
-                      <span className="block text-xs text-stone-500">
-                        {topping.isAvailable
-                          ? formatVnd(topping.price)
-                          : 'Hết hàng'}
+                      key={topping.id}
+                    >
+                      <input
+                        aria-label={topping.name}
+                        type="checkbox"
+                        disabled={!topping.isAvailable || !!editor.snapshot}
+                        checked={editor.toppingIds.includes(topping.id)}
+                        onChange={(e) =>
+                          setEditor({
+                            ...editor,
+                            toppingIds: e.target.checked
+                              ? [...editor.toppingIds, topping.id]
+                              : editor.toppingIds.filter(
+                                  (id) => id !== topping.id,
+                                ),
+                          })
+                        }
+                        className="h-5 w-5 shrink-0 accent-emerald-800"
+                      />
+                      <span>
+                        {topping.name}
+                        <span className="block text-xs text-stone-500">
+                          {topping.isAvailable
+                            ? formatVnd(topping.price)
+                            : 'Hết hàng'}
+                        </span>
                       </span>
-                    </span>
-                  </label>
-                ))}
+                    </label>
+                  ))}
               </div>
             </fieldset>
             <label className="block space-y-2">

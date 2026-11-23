@@ -60,6 +60,7 @@ function initialValues(resource: Resource, row?: Row): Record<string, unknown> {
     ...row,
     email: row?.email ?? '',
     imageUrl: row?.imageUrl ?? '',
+    toppingIds: ((row?.toppings ?? []) as { id: string }[]).map((t) => t.id),
   };
   if (resource === 'products' && row)
     for (const variant of (row.variants ?? []) as {
@@ -280,6 +281,34 @@ export function AdminWorkspace({
           section === 'settings' ? 'grid gap-5 sm:grid-cols-2' : 'space-y-5'
         }
       >
+        {resource === 'products' && (
+          <fieldset>
+            <legend className="mb-2 font-semibold">
+              Topping cho phép (không chọn = không topping)
+            </legend>
+            <div className="flex flex-wrap gap-3">
+              {(data.toppings ?? []).map((t) => (
+                <label key={t.id} className="flex min-h-11 items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={(values.toppingIds as string[]).includes(t.id)}
+                    onChange={(e) =>
+                      setValues({
+                        ...values,
+                        toppingIds: e.target.checked
+                          ? [...(values.toppingIds as string[]), t.id]
+                          : (values.toppingIds as string[]).filter(
+                              (id) => id !== t.id,
+                            ),
+                      })
+                    }
+                  />
+                  {t.name}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        )}
         {fields.map((field) => (
           <label
             key={field.key}

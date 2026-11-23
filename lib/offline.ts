@@ -68,6 +68,8 @@ export async function prepareLocal(
     if (!product?.isAvailable || !variant)
       throw new Error('Món không có trong thực đơn đã lưu');
     const toppings = line.toppingIds.map((id) => {
+      if (product.toppings && !product.toppings.some((t) => t.id === id))
+        throw new Error('Topping không dùng cho món này');
       const topping = snapshot.toppings.find(
         (t) => t.id === id && t.isAvailable,
       );

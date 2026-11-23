@@ -101,6 +101,7 @@ model Product {
   isAvailable Boolean          @default(true)
   sortOrder   Int              @default(0)
   variants    ProductVariant[]
+  toppings    Topping[]        @relation("ProductToppings")
   items       OrderItem[]
 
   @@unique([id, storeId])
@@ -129,6 +130,7 @@ model Topping {
   price       Int
   isAvailable Boolean            @default(true)
   items       OrderItemTopping[]
+  products    Product[]           @relation("ProductToppings")
 
   @@unique([id, storeId])
 }

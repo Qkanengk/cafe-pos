@@ -162,7 +162,7 @@ export async function prepareOrder(
         isActive: true,
         id: { in: input.lines.map((l) => l.variantId) },
       },
-      include: { product: true },
+      include: { product: { include: { toppings: { select: { id: true } } } } },
     });
     const toppings = await tx.topping.findMany({
       where: {
@@ -175,6 +175,8 @@ export async function prepareOrder(
       if (!variant || !variant.product.isAvailable)
         throw new HttpError('Một món đã hết hàng hoặc không còn tồn tại', 409);
       const selected = line.toppingIds.map((id) => {
+        if (!variant.product.toppings.some((t) => t.id === id))
+          throw new HttpError('Topping không dùng cho món này', 400);
         const topping = toppings.find((t) => t.id === id);
         if (!topping?.isAvailable)
           throw new HttpError(

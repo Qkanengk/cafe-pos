@@ -63,6 +63,19 @@ async function main() {
         'Shot espresso',
       ].map((name) => ({ storeId, name, price: 5000 })),
     });
+    const drinks = await tx.product.findMany({
+      where: { storeId, variants: { some: { name: { not: 'Phần' } } } },
+      select: { id: true },
+    });
+    const toppings = await tx.topping.findMany({
+      where: { storeId },
+      select: { id: true },
+    });
+    for (const product of drinks)
+      await tx.product.update({
+        where: { id: product.id },
+        data: { toppings: { connect: toppings } },
+      });
     await tx.table.createMany({
       data: Array.from({ length: 8 }, (_, i) => ({
         storeId,

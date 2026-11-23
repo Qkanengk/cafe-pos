@@ -179,10 +179,18 @@ export async function editOrder(
       } else {
         const variant = await tx.productVariant.findFirst({
           where: { id: line.variantId, storeId: actor.storeId, isActive: true },
-          include: { product: true },
+          include: {
+            product: { include: { toppings: { select: { id: true } } } },
+          },
         });
         if (!variant?.product.isAvailable)
           throw new HttpError('Món đã hết hàng', 409);
+        if (
+          line.toppingIds.some(
+            (id) => !variant.product.toppings.some((t) => t.id === id),
+          )
+        )
+          throw new HttpError('Topping không dùng cho món này', 400);
         const toppings = await tx.topping.findMany({
           where: {
             id: { in: line.toppingIds },

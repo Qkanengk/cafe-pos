@@ -53,7 +53,10 @@ export async function adminRequest(request: NextRequest, resource: string) {
           : resource === 'products'
             ? await db.product.findMany({
                 where: { storeId },
-                include: { variants: { where: { isActive: true } } },
+                include: {
+                  variants: { where: { isActive: true } },
+                  toppings: { select: { id: true } },
+                },
                 orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
               })
             : resource === 'toppings'
@@ -136,7 +139,13 @@ export async function adminRequest(request: NextRequest, resource: string) {
           ? await tx.category.update({ where: { id, storeId }, data: input })
           : await tx.category.create({ data: { ...input, storeId } });
       } else if (resource === 'products') {
-        const { prices, ...input } = productSchema.parse(body);
+        const { prices, toppingIds, ...input } = productSchema.parse(body);
+        const allowed = await tx.topping.findMany({
+          where: { storeId, id: { in: toppingIds } },
+          select: { id: true },
+        });
+        if (allowed.length !== new Set(toppingIds).size)
+          throw new AdminError('Topping không thuộc cửa hàng này');
         if (
           !(await tx.category.findFirst({
             where: { id: input.categoryId, storeId },
@@ -144,8 +153,13 @@ export async function adminRequest(request: NextRequest, resource: string) {
         )
           throw new AdminError('Danh mục không tồn tại');
         const product = id
-          ? await tx.product.update({ where: { id, storeId }, data: input })
-          : await tx.product.create({ data: { ...input, storeId } });
+          ? await tx.product.update({
+              where: { id, storeId },
+              data: { ...input, toppings: { set: allowed } },
+            })
+          : await tx.product.create({
+              data: { ...input, storeId, toppings: { connect: allowed } },
+            });
         await tx.productVariant.updateMany({
           where: {
             storeId,
@@ -167,9 +181,12 @@ export async function adminRequest(request: NextRequest, resource: string) {
           });
         data = await tx.product.findUniqueOrThrow({
           where: { id: product.id },
-          include: { variants: { where: { isActive: true } } },
+          include: {
+            variants: { where: { isActive: true } },
+            toppings: { select: { id: true } },
+          },
         });
-        auditData = { ...input, prices };
+        auditData = { ...input, prices, toppingIds };
       } else if (resource === 'toppings') {
         const input = toppingSchema.parse(body);
         auditData = input;
