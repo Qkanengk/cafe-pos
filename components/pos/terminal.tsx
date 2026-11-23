@@ -636,7 +636,13 @@ export function Terminal({
           <div className="space-y-4">
             <p>
               Giỏ hiện tại chưa bị xóa. Bản máy chủ {recovery.code} · v
-              {recovery.version} · {recovery.status}.
+              {recovery.version} ·{' '}
+              {recovery.status === 'PAID'
+                ? 'Đã thanh toán'
+                : recovery.status === 'CANCELLED'
+                  ? 'Đã hủy'
+                  : 'Đang mở'}
+              .
             </p>
             <h3 className="font-bold">Món trên máy chủ</h3>
             {recovery.items
