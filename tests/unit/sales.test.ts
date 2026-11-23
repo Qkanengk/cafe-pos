@@ -69,6 +69,27 @@ beforeEach(() => {
   });
 });
 describe('server sales', () => {
+  it('audits an applied discount when collecting payment', async () => {
+    mocks.db.order.findFirst.mockResolvedValue({
+      id,
+      storeId: 'store',
+      status: 'OPEN',
+      shiftId: 'shift',
+      version: 1,
+      subtotal: 80000,
+      total: 70000,
+      discountType: 'AMOUNT',
+      discountValue: 10000,
+    });
+    await payOrder(actor, id, { method: 'CASH', received: 100000 });
+    expect(mocks.db.auditLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        action: 'DISCOUNT',
+        entityId: id,
+        data: expect.objectContaining({ amount: 10000 }),
+      }),
+    });
+  });
   it('uses Vietnam day at UTC date boundaries', () => {
     expect(vietnamDay(new Date('2026-11-23T18:00:00Z'))).toBe('2026-11-24');
     expect(vietnamDay(new Date('2026-11-23T16:59:59Z'))).toBe('2026-11-23');

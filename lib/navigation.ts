@@ -7,4 +7,5 @@ export const navigation = [
   { href: '/admin/staff', label: 'Nhân viên', owner: true },
   { href: '/admin/settings', label: 'Cài đặt quán', owner: true },
   { href: '/reports', label: 'Báo cáo', owner: true },
+  { href: '/admin/audit', label: 'Nhật ký', owner: true },
 ];

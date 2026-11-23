@@ -5,6 +5,7 @@ import { verifyCatalog } from './offline-catalog';
 import { cartTotal, changeDue } from './money';
 import { lockStore, nextOrderCode, vietnamDay } from './sales';
 import type { SyncEntry } from './sync-validation';
+import { auditDiscount } from './discount-audit';
 export async function syncOrder(
   actor: { id: string; storeId: string },
   entry: SyncEntry,
@@ -216,6 +217,13 @@ export async function syncOrder(
           shiftId: shift.id,
         },
       },
+    });
+    await auditDiscount(tx, actor, {
+      id: entry.order.id,
+      subtotal: totals.subtotal,
+      total: totals.total,
+      discountType: entry.order.discount?.type ?? null,
+      discountValue: entry.order.discount?.value ?? 0,
     });
     return { id: entry.order.id, code: numbering.code };
   });

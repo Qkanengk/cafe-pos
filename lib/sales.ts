@@ -11,6 +11,7 @@ import {
 } from './money';
 import { checkoutSchema, paymentSchema } from './sales-validation';
 import { HttpError } from './api';
+import { auditDiscount } from './discount-audit';
 
 export const orderInclude = {
   items: { include: { toppings: true }, orderBy: { id: 'asc' } },
@@ -331,6 +332,7 @@ export async function payOrder(
         },
       },
     });
+    await auditDiscount(tx, actor, order);
     return tx.order.findUniqueOrThrow({ where: { id }, include: orderInclude });
   });
 }

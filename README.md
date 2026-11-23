@@ -22,7 +22,7 @@ docker compose logs -f app
 
 | Tài khoản demo | Email / mật khẩu                | Đăng nhập PIN                   |
 | -------------- | ------------------------------- | ------------------------------- |
-| Chủ quán       | `owner@cafe.local` / `owner123` | Chọn **Chủ quán**, PIN **1111** |
+| Chủ quán       | `owner@cafe.local` / `owner123` | PIN **1111** chỉ để duyệt hủy món/đơn |
 | Thu ngân       | —                               | Chọn **Lan**, PIN **2222**      |
 
 Mở ca trước khi bán. Seed có 20 món, 4 danh mục, 5 topping, 8 bàn: cà phê đen S/M/L 20/25/30 nghìn, bạc xỉu từ 29 nghìn, bánh một size **Phần**. Thẻ món hiện giá thấp nhất và **từ** nếu các size khác giá. Seed lại **không sửa dữ liệu cửa hàng đã tồn tại**.
@@ -50,7 +50,7 @@ Dữ liệu PostgreSQL nằm trong named volume `cafe_data` (Compose thêm tiề
 
 ## Tính năng
 
-- **Đăng nhập/phân quyền:** chủ quán email/mật khẩu hoặc tên + PIN; JWT cookie HttpOnly/SameSite=Lax, phiên 12 giờ, Secure khi HTTPS. Kiểm tra nhân viên còn hoạt động trong database. `/admin/*`, `/reports` và API tương ứng OWNER-only.
+- **Đăng nhập/phân quyền:** chủ quán dùng email/mật khẩu; thu ngân chọn tên + PIN. PIN chủ quán chỉ dùng để duyệt hủy, không đăng nhập. PIN giới hạn 5 lần thử/tài khoản và 20 lần/IP trong 15 phút (bộ nhớ một container); triển khai sau proxy cần cấu hình proxy ghi đè header IP. JWT cookie HttpOnly/SameSite=Lax, phiên 12 giờ, Secure khi HTTPS. Kiểm tra nhân viên còn hoạt động trong database. `/admin/*`, `/reports` và API tương ứng OWNER-only.
 - **Ca:** mở ca với tiền đầu ca, đóng ca với tiền thực đếm/chênh lệch; dự kiến = tiền đầu ca + tiền khách đưa − tiền thối, không cộng chuyển khoản. Còn đơn OPEN thì không đóng ca.
 - **POS:** danh mục/tìm kiếm, trạng thái hết hàng, size/topping/ghi chú nhanh, số lượng, mang đi/tại bàn, giảm %/tiền, tiền thối và gợi ý mệnh giá. VND số nguyên, toàn bộ tính giá ở `lib/money.ts`.
 - **Thanh toán:** tiền mặt hoặc VietQR NAPAS/EMVCo tạo PNG tại máy; thu ngân xác nhận tiền về thủ công, có ghi người xác nhận. UUID chống tạo đơn/thu tiền trùng; snapshot giữ tên/giá/topping/ghi chú lịch sử.
@@ -58,6 +58,7 @@ Dữ liệu PostgreSQL nằm trong named volume `cafe_data` (Compose thêm tiề
 - **Bàn/đơn:** sơ đồ theo khu vực và tổng đang phục vụ; giữ OPEN, mở lại, thêm món, tách số lượng, gộp bill, chuyển bàn. Phân bổ giảm giá nguyên VND khi tách; gộp giữ tổng mức giảm.
 - **Xung đột/hủy:** `Order.version` cũ trả 409 và thông báo tải lại. Hủy món/đơn OPEN phải có lý do + PIN OWNER đang hoạt động; giữ VOIDED/CANCELLED và audit, không ghi PIN. Chưa hoàn tiền/hủy đơn PAID. Bill nguồn đã gộp phân biệt với hủy trong audit.
 - **Quản trị:** CRUD danh mục/món/topping/thứ tự/giá S/M/L hoặc Phần, bật/tắt bán một chạm; ảnh bằng URL (không upload/cloud); nhân viên/PIN/vai trò/ngừng hoạt động; quán/ngân hàng/BIN/footer/khổ giấy. Validation Zod dùng chung, thay đổi có audit.
+- **Nhật ký:** `/admin/audit` chỉ dành cho chủ quán, lọc thao tác/khoảng ngày, có phân trang và chi tiết đã loại thông tin PIN/mật khẩu; giảm giá được ghi khi đơn thanh toán, gồm cả đơn ngoại tuyến đã đồng bộ.
 - **Báo cáo điện thoại:** khoảng ngày (hôm nay mặc định, tối đa 366 ngày), doanh thu ngày/ca/phương thức, số đơn/trung bình, top 10 số lượng/doanh thu, món/đơn hủy theo ca với lý do và chủ quán cho phép.
 
 ## Ngoại tuyến: chuẩn bị và giới hạn
