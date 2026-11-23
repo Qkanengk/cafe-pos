@@ -96,7 +96,7 @@ self.addEventListener('fetch', (event) => {
     return;
   if (
     event.request.mode === 'navigate' &&
-    ['/pos', '/tables', '/offline'].includes(url.pathname)
+    ['/pos', '/tables', '/orders', '/offline'].includes(url.pathname)
   ) {
     event.respondWith(
       (async () => {

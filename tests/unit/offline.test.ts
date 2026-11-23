@@ -52,6 +52,8 @@ import {
   payLocal,
   refreshSnapshot,
   syncPending,
+  localDrafts,
+  localDraft,
 } from '../../lib/offline';
 import type { OfflineSnapshot } from '../../lib/offline-types';
 import { checkoutSchema } from '../../lib/sales-validation';
@@ -104,6 +106,14 @@ beforeEach(() => {
   mem.db.snapshots.rows.set('active', { id: 'active', data: snapshot() });
 });
 describe('local sale snapshots', () => {
+  it('lists and reopens only this cashier’s held drafts, including an empty device', async () => {
+    expect(await localDrafts()).toEqual([]);
+    const order = await prepareLocal(input());
+    mem.db.drafts.rows.set('foreign', { id: 'foreign', userId: 'other' });
+    expect((await localDrafts()).map((d) => d.id)).toEqual([id]);
+    expect((await localDraft(id))?.order).toEqual(order);
+    expect(await localDraft('foreign')).toBeUndefined();
+  });
   it('moves past twenty rejected orders instead of starving the twenty-first', async () => {
     for (let i = 0; i < 21; i++)
       mem.db.outbox.rows.set('q' + i, {

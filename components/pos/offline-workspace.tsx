@@ -5,6 +5,7 @@ import type { OfflineSnapshot } from '@/lib/offline-types';
 import type { SaleOrder } from '@/lib/sales-types';
 import { Terminal } from './terminal';
 import { Tables } from './tables';
+import { LocalHeldOrders } from './local-held-orders';
 export function OfflineWorkspace() {
   const [snapshot, setSnapshot] = useState<OfflineSnapshot | null>(null),
     [initial, setInitial] = useState<SaleOrder | undefined>(),
@@ -58,7 +59,9 @@ export function OfflineWorkspace() {
         cấp sau đồng bộ. Đơn giữ ngoại tuyến ở trên thiết bị đến khi thanh toán.
         Sửa/gộp/hủy đơn máy chủ cần có mạng.
       </p>
-      {path === '/tables' ? (
+      {path === '/orders' ? (
+        <LocalHeldOrders />
+      ) : path === '/tables' ? (
         <Tables tables={snapshot.tables} />
       ) : (
         <Terminal

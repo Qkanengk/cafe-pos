@@ -193,6 +193,10 @@ export async function localDraft(id: string) {
   const draft = await local.drafts.get(id);
   return draft?.userId === snapshot.user.id ? draft : undefined;
 }
+export async function localDrafts() {
+  const snapshot = await cachedSnapshot();
+  return local.drafts.where('userId').equals(snapshot.user.id).toArray();
+}
 export async function syncedCode(id: string) {
   const snapshot = await local.snapshots.get('active');
   const receipt = await local.receipts.get(id);

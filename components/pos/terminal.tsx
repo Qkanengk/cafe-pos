@@ -337,9 +337,9 @@ export function Terminal({
           className="rounded-xl bg-emerald-50 p-4 font-semibold text-emerald-900"
         >
           {notice}{' '}
-          <Link href="/orders" className="ml-3 underline">
+          <a href="/orders" className="ml-3 underline">
             Đơn đang giữ
-          </Link>{' '}
+          </a>{' '}
           ·{' '}
           <a href="/pos" className="underline">
             Đơn mới
