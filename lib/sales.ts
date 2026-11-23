@@ -77,8 +77,9 @@ export async function lockStore(tx: Prisma.TransactionClient, storeId: string) {
 export async function nextOrderCode(
   tx: Prisma.TransactionClient,
   storeId: string,
+  date = new Date(),
 ) {
-  const businessDate = vietnamDay(new Date());
+  const businessDate = vietnamDay(date);
   const sequence = await tx.order.aggregate({
     where: { storeId, businessDate },
     _max: { dailyNumber: true },
