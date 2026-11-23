@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { MoneyInput } from '@/components/ui/money-input';
 import { Dialog } from '@/components/ui/dialog';
 import { PaymentDialog } from './payment';
 import { PrintLinks } from './print-links';
@@ -25,6 +26,7 @@ import {
   lineTotal,
   formatVnd,
   startingPrice,
+  parseVndInput,
   type Discount,
 } from '@/lib/money';
 import { checkoutSchema } from '@/lib/sales-validation';
@@ -145,8 +147,9 @@ export function Terminal({
     ) ||
       type !== prepared.type ||
       (type === 'DINE_IN' && tableId !== prepared.tableId) ||
-      Number(discountValue) !== prepared.discountValue ||
-      (Number(discountValue) > 0 && discountType !== prepared.discountType));
+      parseVndInput(discountValue) !== prepared.discountValue ||
+      (parseVndInput(discountValue) > 0 &&
+        discountType !== prepared.discountType));
   function load(order: SaleOrder) {
     if (order.status !== 'OPEN') {
       router.push('/orders');
@@ -195,7 +198,7 @@ export function Terminal({
   }
   const discount: Discount = {
     type: discountType,
-    value: Number(discountValue),
+    value: parseVndInput(discountValue),
   };
   let totals = { subtotal: 0, discount: 0, total: 0 };
   let valid = true;
@@ -608,15 +611,15 @@ export function Terminal({
               <label htmlFor="discount" className="flex-1 text-sm">
                 Giảm giá
               </label>
-              <Input
+              <MoneyInput
                 id="discount"
                 aria-label="Giảm giá"
-                type="number"
+                grouped={discountType === 'AMOUNT'}
                 min={0}
                 step={1}
                 disabled={busy}
                 value={discountValue}
-                onChange={(e) => setDiscountValue(e.target.value)}
+                onValueChange={setDiscountValue}
                 className="w-24"
               />
               <select

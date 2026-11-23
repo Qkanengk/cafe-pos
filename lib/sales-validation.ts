@@ -1,6 +1,10 @@
 import { z } from 'zod';
+import { parseVndInput } from './money';
 z.config(z.locales.vi());
-export const cashValue = z.number().int().min(0).max(2147483647);
+export const cashValue = z.preprocess(
+  (value) => (typeof value === 'string' ? parseVndInput(value) : value),
+  z.number().int().min(0).max(2147483647),
+);
 export const openShiftSchema = z.object({ openingCash: cashValue });
 export const closeShiftSchema = z.object({
   id: z.uuid(),

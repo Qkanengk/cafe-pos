@@ -1,11 +1,15 @@
 import { z } from 'zod';
+import { parseVndInput } from './money';
 z.config(z.locales.vi());
 const name = z
   .string()
   .trim()
   .min(1, 'Vui lòng nhập tên')
   .max(120, 'Tối đa 120 ký tự');
-const money = z.number().int().min(0).max(2147483647);
+const money = z.preprocess(
+  (value) => (typeof value === 'string' ? parseVndInput(value) : value),
+  z.number().int().min(0).max(2147483647),
+);
 const sortOrder = z.number().int().min(0).max(9999);
 const id = z.string().uuid();
 export const banks = [

@@ -8,6 +8,16 @@ import {
 } from '../../lib/admin-validation';
 const categoryId = '7ff9e456-8548-4f88-9c18-1d2b655de2ce';
 describe('shared admin validation', () => {
+  it('parses formatted VND prices without changing their magnitude', () => {
+    const product = productSchema.parse({
+      name: 'Latte',
+      categoryId,
+      sortOrder: 0,
+      isAvailable: true,
+      prices: { S: '20.000', M: '25,000', L: '30000' },
+    });
+    expect(product.prices).toEqual({ S: 20000, M: 25000, L: 30000 });
+  });
   it('accepts a single Phần price and rejects missing or invalid portion prices', () => {
     const base = {
       name: 'Bánh',

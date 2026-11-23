@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  parseVndInput,
   lineTotal,
   subtotal,
   cartTotal,
@@ -8,6 +9,26 @@ import {
   cashSuggestions,
   vnd,
 } from '../../lib/money';
+describe('Vietnamese VND input', () => {
+  it('accepts dots, commas, and ungrouped integer VND', () => {
+    for (const value of ['500.000', '500,000', '500000', ' 500.000 ', 500000])
+      expect(parseVndInput(value)).toBe(500000);
+    expect(parseVndInput('1.250.000')).toBe(1250000);
+    expect(parseVndInput('0')).toBe(0);
+  });
+  it('rejects empty, ambiguous fractions, mixed separators, and out-of-range amounts', () => {
+    for (const value of [
+      '',
+      '500.5',
+      '500,00',
+      '1.000,000',
+      '-1',
+      'abc',
+      '2147483648',
+    ])
+      expect(parseVndInput(value)).toBeNaN();
+  });
+});
 describe('integer VND', () => {
   it('prices toppings per item and ignores voided lines', () => {
     expect(

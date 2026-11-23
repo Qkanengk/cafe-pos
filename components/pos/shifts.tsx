@@ -4,7 +4,8 @@ import { useState, type FormEvent } from 'react';
 import { Clock3, Banknote, ArrowRight, LockKeyhole } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { formatVnd, shiftDifference } from '@/lib/money';
+import { MoneyInput } from '@/components/ui/money-input';
+import { formatVnd, shiftDifference, parseVndInput } from '@/lib/money';
 import { openShiftSchema, closeShiftSchema } from '@/lib/sales-validation';
 import type { ShiftView } from '@/lib/sales-types';
 import { refreshSnapshot } from '@/lib/offline';
@@ -27,17 +28,17 @@ export function Shifts({ initial }: { initial: ShiftView[] }) {
   let difference: number | null = null;
   if (active && counted !== '')
     try {
-      difference = shiftDifference(active.expectedCash, Number(counted));
+      difference = shiftDifference(active.expectedCash, parseVndInput(counted));
     } catch {}
   async function submit(event: FormEvent, action: 'open' | 'close') {
     event.preventDefault();
     setError('');
     const parsed =
       action === 'open'
-        ? openShiftSchema.safeParse({ openingCash: Number(opening) })
+        ? openShiftSchema.safeParse({ openingCash: parseVndInput(opening) })
         : closeShiftSchema.safeParse({
             id: active?.id,
-            countedCash: Number(counted),
+            countedCash: parseVndInput(counted),
             note,
           });
     if (!parsed.success) {
@@ -152,14 +153,13 @@ export function Shifts({ initial }: { initial: ShiftView[] }) {
             <h3 className="mb-5 text-lg font-bold">Đối soát & đóng ca</h3>
             <label className="block space-y-2">
               <span>Tiền mặt thực đếm (₫)</span>
-              <Input
+              <MoneyInput
                 aria-label="Tiền mặt thực đếm"
-                type="number"
                 min={0}
                 step={1}
                 required
                 value={counted}
-                onChange={(e) => setCounted(e.target.value)}
+                onValueChange={setCounted}
               />
             </label>
             <div className="my-4 flex justify-between">
@@ -211,14 +211,13 @@ export function Shifts({ initial }: { initial: ShiftView[] }) {
           </h2>
           <label className="block space-y-2">
             <span>Tiền đầu ca (₫)</span>
-            <Input
+            <MoneyInput
               aria-label="Tiền đầu ca"
-              type="number"
               min={0}
               step={1}
               required
               value={opening}
-              onChange={(e) => setOpening(e.target.value)}
+              onValueChange={setOpening}
             />
           </label>
           <Button className="mt-5 w-full" disabled={busy || opening === ''}>

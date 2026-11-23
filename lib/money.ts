@@ -1,3 +1,12 @@
+export function parseVndInput(value: string | number): number {
+  const text = String(value).trim();
+  if (!/^(?:\d+|\d{1,3}(?:\.\d{3})+|\d{1,3}(?:,\d{3})+)$/.test(text))
+    return NaN;
+  const amount = Number(text.replace(/[.,]/g, ''));
+  return Number.isSafeInteger(amount) && amount >= 0 && amount <= 2147483647
+    ? amount
+    : NaN;
+}
 export function vnd(value: number): number {
   if (!Number.isSafeInteger(value) || value < 0)
     throw new RangeError('VND must be a non-negative safe integer');

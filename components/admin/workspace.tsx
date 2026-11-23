@@ -3,6 +3,7 @@ import { useState, type FormEvent } from 'react';
 import { Coffee, Plus, Circle, CircleCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { MoneyInput } from '@/components/ui/money-input';
 import { adminSchemas, banks, type Resource } from '@/lib/admin-validation';
 
 type Row = { id: string; name: string; [key: string]: unknown };
@@ -329,6 +330,14 @@ export function AdminWorkspace({
                 value={String(values[field.key] ?? '')}
                 onChange={(e) =>
                   setValues({ ...values, [field.key]: e.target.value })
+                }
+              />
+            ) : ['price', 'S', 'M', 'L', 'Phần'].includes(field.key) ? (
+              <MoneyInput
+                aria-label={field.label}
+                value={String(values[field.key] ?? '')}
+                onValueChange={(value) =>
+                  setValues({ ...values, [field.key]: value })
                 }
               />
             ) : (

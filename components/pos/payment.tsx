@@ -3,9 +3,14 @@ import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import { Banknote, QrCode, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { MoneyInput } from '@/components/ui/money-input';
 import { Dialog } from '@/components/ui/dialog';
-import { cashSuggestions, changeDue, formatVnd } from '@/lib/money';
+import {
+  cashSuggestions,
+  changeDue,
+  formatVnd,
+  parseVndInput,
+} from '@/lib/money';
 import { renderVietQR } from '@/lib/vietqr';
 import { payLocal } from '@/lib/offline';
 import { posFetch } from '@/lib/pos-fetch';
@@ -56,7 +61,7 @@ export function PaymentDialog({
   let change: number | null = null;
   if (received !== '')
     try {
-      change = changeDue(order.total, Number(received));
+      change = changeDue(order.total, parseVndInput(received));
     } catch {}
   async function pay() {
     setBusy(true);
@@ -67,7 +72,7 @@ export function PaymentDialog({
           await payLocal(
             order,
             method === 'CASH'
-              ? { id: paymentId, method, received: Number(received) }
+              ? { id: paymentId, method, received: parseVndInput(received) }
               : { id: paymentId, method, confirmed: true },
           ),
         );
@@ -81,7 +86,7 @@ export function PaymentDialog({
             ? {
                 id: paymentId,
                 method,
-                received: Number(received),
+                received: parseVndInput(received),
                 version: order.version,
               }
             : {
@@ -215,13 +220,12 @@ export function PaymentDialog({
             <>
               <label className="block space-y-2 font-medium">
                 <span>Tiền khách đưa (₫)</span>
-                <Input
+                <MoneyInput
                   aria-label="Tiền khách đưa"
-                  type="number"
                   min={0}
                   step={1}
                   value={received}
-                  onChange={(e) => setReceived(e.target.value)}
+                  onValueChange={setReceived}
                   className="text-2xl"
                   inputMode="numeric"
                 />
