@@ -71,6 +71,38 @@ function entry() {
     payment: { method: 'CASH', received: 100000 },
   });
 }
+function recoveredOrder(input = entry()) {
+  return {
+    id,
+    storeId,
+    createdBy: userId,
+    shiftId,
+    status: 'OPEN',
+    version: 1,
+    payments: [],
+    type: 'TAKEAWAY',
+    tableId: null,
+    note: '',
+    discountType: null,
+    discountValue: 0,
+    subtotal: 60000,
+    total: 60000,
+    businessDate: vietnamDay(new Date(input.paidAt)),
+    code: 'CF001',
+    dailyNumber: 1,
+    items: [
+      {
+        id: 'saved-item',
+        variantId: id,
+        quantity: 2,
+        note: 'ít đá',
+        status: 'ACTIVE',
+        priceSnapshot: 25000,
+        toppings: [{ toppingId: id, priceSnapshot: 5000 }],
+      },
+    ],
+  };
+}
 beforeEach(() => {
   vi.resetAllMocks();
   vi.stubEnv('AUTH_SECRET', 'unit-test-secret-at-least-32-characters');
@@ -170,7 +202,8 @@ describe('offline sync transaction', () => {
           quantity: 2,
           note: 'ít đá',
           status: 'ACTIVE',
-          toppings: [{ toppingId: id }],
+          priceSnapshot: 25000,
+          toppings: [{ toppingId: id, priceSnapshot: 5000 }],
         },
       ],
     });
@@ -188,6 +221,16 @@ describe('offline sync transaction', () => {
     expect(mocks.db.order.create).toHaveBeenCalledWith({
       data: expect.objectContaining({ subtotal: 60000, total: 60000 }),
     });
+  });
+  it('rejects offsetting per-line price changes even when the recovered totals match', async () => {
+    const input = entry(),
+      existing = recoveredOrder(input);
+    existing.items[0].priceSnapshot = 20000;
+    existing.items[0].toppings[0].priceSnapshot = 10000;
+    mocks.orders.set(id, existing);
+    await expect(syncOrder(actor, input)).rejects.toThrow('giá từng món');
+    expect(mocks.db.payment.create).not.toHaveBeenCalled();
+    expect(mocks.db.order.update).not.toHaveBeenCalled();
   });
   it('upserts by order/payment UUID; replay writes exactly one paid order and payment', async () => {
     const input = entry(),

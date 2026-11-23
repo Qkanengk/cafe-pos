@@ -136,10 +136,38 @@ export async function syncOrder(
         : null;
     if (
       unconfirmed &&
-      (existing.total !== totals.total || existing.subtotal !== totals.subtotal)
+      (existing.total !== totals.total ||
+        existing.subtotal !== totals.subtotal ||
+        JSON.stringify(
+          existing.items
+            .filter((item) => item.status === 'ACTIVE')
+            .map((item) =>
+              JSON.stringify([
+                item.variantId,
+                item.quantity,
+                item.note,
+                item.priceSnapshot,
+                item.toppings.map((t) => [t.toppingId, t.priceSnapshot]).sort(),
+              ]),
+            )
+            .sort(),
+        ) !==
+          JSON.stringify(
+            lines
+              .map(({ line, variant, selected }) =>
+                JSON.stringify([
+                  variant.id,
+                  line.quantity,
+                  line.note,
+                  variant.price,
+                  selected.map((t) => [t.id, t.price]).sort(),
+                ]),
+              )
+              .sort(),
+          ))
     )
       throw new HttpError(
-        'Giá trị đơn máy chủ khác số tiền đã thu trên thiết bị. Giữ đơn để chủ quán đối chiếu; không tự ghi đè.',
+        'Giá trị hoặc giá từng món/topping trên máy chủ khác đơn đã bán. Giữ đơn để chủ quán đối chiếu; không tự ghi đè.',
         409,
       );
     const numbering = unconfirmed
