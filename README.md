@@ -20,10 +20,10 @@ docker compose ps
 docker compose logs -f app
 ```
 
-| Tài khoản demo | Email / mật khẩu                | Đăng nhập PIN                   |
-| -------------- | ------------------------------- | ------------------------------- |
+| Tài khoản demo | Email / mật khẩu                | Đăng nhập PIN                         |
+| -------------- | ------------------------------- | ------------------------------------- |
 | Chủ quán       | `owner@cafe.local` / `owner123` | PIN **1111** chỉ để duyệt hủy món/đơn |
-| Thu ngân       | —                               | Chọn **Lan**, PIN **2222**      |
+| Thu ngân       | —                               | Chọn **Lan**, PIN **2222**            |
 
 Mở ca trước khi bán. Seed có 20 món, 4 danh mục, 5 topping, 8 bàn: cà phê đen S/M/L 20/25/30 nghìn, bạc xỉu từ 29 nghìn, bánh một size **Phần**. Thẻ món hiện giá thấp nhất và **từ** nếu các size khác giá. Seed lại **không sửa dữ liệu cửa hàng đã tồn tại**.
 
@@ -57,7 +57,8 @@ Dữ liệu PostgreSQL nằm trong named volume `cafe_data` (Compose thêm tiề
 - **In:** bill và phiếu pha chế 58/80mm, hộp in trình duyệt, in lại đơn PAID. Chưa kiểm tra máy in nhiệt vật lý.
 - **Bàn/đơn:** sơ đồ theo khu vực và tổng đang phục vụ; giữ OPEN, mở lại, thêm món, tách số lượng, gộp bill, chuyển bàn. Phân bổ giảm giá nguyên VND khi tách; gộp giữ tổng mức giảm.
 - **Xung đột/hủy:** `Order.version` cũ trả 409 và thông báo tải lại. Hủy món/đơn OPEN phải có lý do + PIN OWNER đang hoạt động; giữ VOIDED/CANCELLED và audit, không ghi PIN. Chưa hoàn tiền/hủy đơn PAID. Bill nguồn đã gộp phân biệt với hủy trong audit.
-- **Quản trị:** CRUD danh mục/món/topping/thứ tự/giá S/M/L hoặc Phần, bật/tắt bán một chạm; ảnh bằng URL (không upload/cloud); nhân viên/PIN/vai trò/ngừng hoạt động; quán/ngân hàng/BIN/footer/khổ giấy. Validation Zod dùng chung, thay đổi có audit.
+- **Quản trị:** CRUD danh mục/món/topping/thứ tự/giá S/M/L hoặc Phần, bật/tắt bán một chạm; tải ảnh cục bộ hoặc URL ảnh công khai; nhân viên/PIN/vai trò/ngừng hoạt động; quán/ngân hàng/BIN/footer/khổ giấy. Validation Zod dùng chung, thay đổi có audit.
+- **Ảnh món:** PNG/JPEG/GIF/WebP tối đa 2 MB, kiểm tra MIME và chữ ký tệp; không SVG. Ảnh tải lên nằm trong volume Docker `cafe_uploads`, cần sao lưu cùng dữ liệu. `UPLOAD_DIR` đổi thư mục lưu (mặc định `./uploads`, Compose dùng `/app/uploads`). URL phải trỏ trực tiếp tới ảnh công khai; địa chỉ nội bộ/localhost, chuyển hướng và nội dung không phải ảnh bị từ chối để tránh truy cập dịch vụ nội bộ. Ảnh nội bộ dùng nút tải từ thiết bị.
 - **Nhật ký:** `/admin/audit` chỉ dành cho chủ quán, lọc thao tác/khoảng ngày, có phân trang và chi tiết đã loại thông tin PIN/mật khẩu; giảm giá được ghi khi đơn thanh toán, gồm cả đơn ngoại tuyến đã đồng bộ.
 - **Báo cáo điện thoại:** khoảng ngày (hôm nay mặc định, tối đa 366 ngày), doanh thu ngày/ca/phương thức, số đơn/trung bình, top 10 số lượng/doanh thu, món/đơn hủy theo ca với lý do và chủ quán cho phép.
 

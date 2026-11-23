@@ -117,8 +117,7 @@ export function AdminWorkspace({
             {
               key: 'imageUrl',
               label: 'URL ảnh',
-              type: 'url',
-              hint: 'Liên kết ảnh http/https. Để trống nếu chưa có ảnh.',
+              hint: 'Ảnh công khai http/https hoặc ảnh tải từ thiết bị; PNG/JPEG/GIF/WebP tối đa 2 MB.',
             },
             { key: 'sortOrder', label: 'Thứ tự hiển thị', type: 'number' },
             {
@@ -276,6 +275,46 @@ export function AdminWorkspace({
   );
   const form = (
     <form onSubmit={save} className="space-y-5">
+      {resource === 'products' && (
+        <label className="block space-y-2">
+          <span>Tải ảnh từ thiết bị (tối đa 2 MB)</span>
+          <Input
+            type="file"
+            accept="image/png,image/jpeg,image/gif,image/webp"
+            disabled={busy}
+            onChange={async (event) => {
+              const file = event.target.files?.[0];
+              if (!file) return;
+              if (file.size > 2 * 1024 * 1024) {
+                setError('Ảnh không được quá 2 MB.');
+                return;
+              }
+              setBusy(true);
+              setError('');
+              try {
+                const form = new FormData();
+                form.set('file', file);
+                const response = await posFetch('/api/admin/images', {
+                  method: 'POST',
+                  body: form,
+                });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error);
+                setValues((current) => ({
+                  ...current,
+                  imageUrl: data.imageUrl,
+                }));
+              } catch (error) {
+                setError(
+                  error instanceof Error ? error.message : 'Không thể tải ảnh.',
+                );
+              } finally {
+                setBusy(false);
+              }
+            }}
+          />
+        </label>
+      )}
       <div
         className={
           section === 'settings' ? 'grid gap-5 sm:grid-cols-2' : 'space-y-5'

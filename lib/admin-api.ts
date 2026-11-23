@@ -4,6 +4,7 @@ import { hash, compare } from 'bcryptjs';
 import { db } from './db';
 import { COOKIE_NAME, verifySession } from './session';
 import { validOrigin } from './request-origin';
+import { validateImageUrl, ImageError } from './images';
 import {
   categorySchema,
   productSchema,
@@ -74,6 +75,8 @@ export async function adminRequest(request: NextRequest, resource: string) {
       return NextResponse.json(data);
     }
     const body = await request.json().catch(() => null);
+    if (resource === 'products' && ['POST', 'PUT'].includes(request.method))
+      await validateImageUrl(productSchema.parse(body).imageUrl, storeId);
     const result = await db.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT id FROM "Store" WHERE id = ${storeId} FOR UPDATE`;
       const currentActor = await tx.user.findFirst({
@@ -276,6 +279,11 @@ export async function adminRequest(request: NextRequest, resource: string) {
       status: request.method === 'POST' ? 201 : 200,
     });
   } catch (error) {
+    if (error instanceof ImageError)
+      return NextResponse.json(
+        { error: error.message },
+        { status: error.status },
+      );
     if (error instanceof AdminError)
       return NextResponse.json(
         { error: error.message },

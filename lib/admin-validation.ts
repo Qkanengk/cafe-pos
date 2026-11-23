@@ -39,6 +39,7 @@ export const productSchema = z.object({
   imageUrl: z
     .union([
       z.literal(''),
+      z.string().regex(/^\/api\/images\/[0-9a-f-]{36}\.(png|jpg|gif|webp)$/),
       z
         .url()
         .refine(
