@@ -101,7 +101,10 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       (async () => {
         try {
-          return await fetch(event.request);
+          const response = await fetch(event.request);
+          if (response.status === 404 || response.status >= 500)
+            throw new Error('Workspace unavailable');
+          return response;
         } catch {
           const cache = await currentCache();
           const fallback = await cache?.match('/offline');

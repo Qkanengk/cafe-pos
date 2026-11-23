@@ -2,7 +2,7 @@ import { requireUser } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { Terminal } from '@/components/pos/terminal';
 import { orderInclude } from '@/lib/sales';
-import { notFound } from 'next/navigation';
+import { OfflineWorkspace } from '@/components/pos/offline-workspace';
 export default async function Page({
   searchParams,
 }: {
@@ -16,7 +16,7 @@ export default async function Page({
         include: orderInclude,
       })
     : null;
-  if (params.orderId && !initialOrder) notFound();
+  if (params.orderId && !initialOrder) return <OfflineWorkspace />;
   const [products, categories, toppings, tables, store, shift] =
     await Promise.all([
       db.product.findMany({

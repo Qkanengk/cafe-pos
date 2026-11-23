@@ -21,7 +21,7 @@ export function OfflineWorkspace() {
         const draft = orderId ? await localDraft(orderId) : undefined;
         if (orderId && !draft)
           throw new Error(
-            'Đơn đã lưu trên máy chủ cần kết nối để mở. Hãy trở lại /pos để tạo đơn ngoại tuyến mới.',
+            'Không tìm thấy đơn trên thiết bị này. Kết nối để kiểm tra đơn máy chủ hoặc trở lại /pos để tạo đơn mới.',
           );
         if (active) {
           setSnapshot(data);
