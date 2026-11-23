@@ -211,7 +211,10 @@ try {
     'Đơn đã được thay đổi trên thiết bị khác. Vui lòng tải lại đơn.',
   );
   await expect(
-    other.getByRole('link', { name: 'Tải lại đơn', exact: true }),
+    other.getByRole('button', {
+      name: 'Tải bản mới, giữ món chưa lưu',
+      exact: true,
+    }),
   ).toBeVisible();
   await other.screenshot({
     path: shots + '/order-conflict.png',
@@ -221,7 +224,7 @@ try {
   assert.equal(server.version, 2);
   assert.equal(server.items.length, 4);
   console.log(
-    'PASS optimistic lock: two browser contexts at v1; first edit → v2; second edit → 409 and Vietnamese reload link; no lost updates',
+    'PASS optimistic lock: two browser contexts at v1; first edit → v2; second edit → 409 and recovery preserving pending items; no lost updates',
   );
   const beforeSplit = order.total;
   const toSplit = order.items.find((i) =>

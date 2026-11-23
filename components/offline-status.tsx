@@ -131,7 +131,9 @@ export function OfflineStatus() {
           ? 'Đang kiểm tra máy chủ'
           : online
             ? 'Trực tuyến'
-            : 'Mất kết nối máy chủ / ngoại tuyến'}{' '}
+            : connectionError === 'Thiết bị đang ngoại tuyến.'
+              ? 'Ngoại tuyến'
+              : 'Mất kết nối máy chủ'}{' '}
         ·{' '}
         {pending > 0
           ? pending + ' đơn chờ đồng bộ'
