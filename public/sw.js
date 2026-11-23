@@ -125,6 +125,7 @@ self.addEventListener('fetch', (event) => {
   }
   if (
     url.pathname.startsWith('/_next/static/') ||
+    url.pathname.startsWith('/api/images/') ||
     url.pathname === '/api/menu' ||
     url.pathname.startsWith('/icons/') ||
     url.pathname === '/manifest.webmanifest'
@@ -133,7 +134,11 @@ self.addEventListener('fetch', (event) => {
       (async () => {
         try {
           const response = await fetch(event.request);
-          if (response.ok && url.pathname.startsWith('/_next/static/')) {
+          if (
+            response.ok &&
+            (url.pathname.startsWith('/_next/static/') ||
+              url.pathname.startsWith('/api/images/'))
+          ) {
             const cache = await currentCache();
             await cache?.put(event.request, response.clone());
           }

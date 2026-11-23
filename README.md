@@ -170,6 +170,6 @@ docker-compose.yml      App + PostgreSQL, named volume và healthcheck
 
 ## Ngoài phạm vi / bước tiếp theo
 
-Chưa có đa chi nhánh, tồn kho/nguyên liệu, khách hàng thân thiết/voucher, VAT/kế toán/hóa đơn điện tử, Grab/ShopeeFood, chấm công, app native, webhook xác nhận ngân hàng, hoàn tiền đơn PAID, upload ảnh, xuất Excel hay agent ESC/POS/WebUSB. Chưa chạy thử thực tế một ngày tại quán hoặc máy in nhiệt vật lý.
+Chưa có đa chi nhánh, tồn kho/nguyên liệu, khách hàng thân thiết/voucher, VAT/kế toán/hóa đơn điện tử, Grab/ShopeeFood, chấm công, app native, webhook xác nhận ngân hàng, hoàn tiền đơn PAID, xuất Excel hay agent ESC/POS/WebUSB. Chưa chạy thử thực tế một ngày tại quán hoặc máy in nhiệt vật lý.
 
 Trước dùng thật: đổi thông tin demo/secret, cấu hình HTTPS trong LAN, backup/khôi phục PostgreSQL có kiểm chứng, bảo vệ máy POS, theo dõi queue lỗi, thử mất mạng trên thiết bị thực và kiểm tra máy in. Sau đó mới mở rộng kho/khách hàng/webhook/đa chi nhánh.
