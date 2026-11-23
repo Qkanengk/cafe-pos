@@ -336,6 +336,7 @@ export function Terminal({
       return;
     }
     setPrepared(order);
+    setCartScope(order.id);
     window.history.replaceState(null, '', '/pos?orderId=' + order.id);
     setId(order.id);
     setLines(orderLines(order));

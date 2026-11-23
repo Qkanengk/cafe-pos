@@ -121,7 +121,15 @@ export function saveWorkingCart(
 ) {
   const data = schema.parse(cart);
   localStorage.setItem(recordKey(userId, cart.id), JSON.stringify(data));
-  localStorage.setItem(pointerKey(userId, scope), cart.id);
+  if (
+    cart.prepared &&
+    localStorage.getItem(pointerKey(userId, 'new')) === cart.id
+  )
+    localStorage.removeItem(pointerKey(userId, 'new'));
+  localStorage.setItem(
+    pointerKey(userId, cart.prepared ? cart.id : scope),
+    cart.id,
+  );
 }
 export function clearWorkingCart(userId: string, scope: string, id?: string) {
   const savedId =

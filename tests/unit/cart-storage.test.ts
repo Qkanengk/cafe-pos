@@ -61,6 +61,7 @@ it('restores the same order/payment UUID, modifiers, table and discount after re
 });
 it('retains the stale base version and unsaved edits rather than silently adopting fresh server data', () => {
   const saved = cart();
+  saveWorkingCart('user', 'new', saved);
   const snapshot = {
     id: 'saved-line',
     productId: id,
@@ -95,6 +96,10 @@ it('retains the stale base version and unsaved edits rather than silently adopti
   };
   saveWorkingCart('user', id, saved);
   expect(readWorkingCart('user', id)).toEqual(saved);
+  expect(readWorkingCart('user', 'new')).toBeNull();
+  saveWorkingCart('user', 'new', { ...cart(), id: other });
+  saveWorkingCart('user', id, saved);
+  expect(readWorkingCart('user', 'new')?.id).toBe(other);
 });
 it('clears only the successful cart and its aliases, not another active device cart', () => {
   saveWorkingCart('user', 'new', cart());
