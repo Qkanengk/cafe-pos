@@ -21,7 +21,7 @@ export default async function Page({
     await Promise.all([
       db.product.findMany({
         where: { storeId },
-        include: { variants: true },
+        include: { variants: { where: { isActive: true } } },
         orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
       }),
       db.category.findMany({

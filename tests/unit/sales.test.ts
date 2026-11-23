@@ -116,6 +116,11 @@ describe('server sales', () => {
     await expect(prepareOrder(actor, input)).rejects.toThrow('mở ca');
     mocks.db.productVariant.findMany.mockResolvedValueOnce([]);
     await expect(prepareOrder(actor, input)).rejects.toThrow('hết hàng');
+    expect(mocks.db.productVariant.findMany).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ isActive: true }),
+      }),
+    );
     mocks.db.topping.findMany.mockResolvedValueOnce([]);
     await expect(prepareOrder(actor, input)).rejects.toThrow('topping');
     expect(mocks.db.order.create).not.toHaveBeenCalled();

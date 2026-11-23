@@ -10,7 +10,7 @@ export default async function Page() {
     }),
     db.product.findMany({
       where: { storeId },
-      include: { variants: true },
+      include: { variants: { where: { isActive: true } } },
       orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
     }),
     db.topping.findMany({ where: { storeId }, orderBy: { name: 'asc' } }),

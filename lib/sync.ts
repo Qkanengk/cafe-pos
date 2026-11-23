@@ -140,7 +140,7 @@ export async function syncOrder(
       createdBy: actor.id,
       type: entry.order.type,
       tableId: entry.order.type === 'DINE_IN' ? entry.order.tableId : null,
-      status: 'PAID',
+      status: 'PAID' as const,
       createdAt,
       paidAt,
       subtotal: totals.subtotal,

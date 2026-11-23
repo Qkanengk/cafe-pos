@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => {
     findUniqueOrThrow: vi.fn(),
     create: vi.fn(),
     update: vi.fn(),
+    updateMany: vi.fn(),
     delete: vi.fn(),
     deleteMany: vi.fn(),
     upsert: vi.fn(),
@@ -175,9 +176,34 @@ describe('owner admin API', () => {
     expect(mocks.db.productVariant.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { productId_name: { productId: id, name: 'M' } },
-        update: { price: 25000 },
+        update: { price: 25000, isActive: true },
       }),
     );
+  });
+  it('retires omitted sizes in both directions without deleting historical references', async () => {
+    const base = {
+      id,
+      name: 'Món',
+      categoryId: id,
+      sortOrder: 0,
+      imageUrl: '',
+      isAvailable: true,
+    };
+    for (const prices of [{ Phần: 29000 }, { S: 20000, M: 25000, L: 30000 }]) {
+      expect(
+        (await adminRequest(request('PUT', { ...base, prices }), 'products'))
+          .status,
+      ).toBe(200);
+      expect(mocks.db.productVariant.updateMany).toHaveBeenLastCalledWith({
+        where: {
+          storeId: 'store',
+          productId: id,
+          name: { notIn: Object.keys(prices) },
+        },
+        data: { isActive: false },
+      });
+    }
+    expect(mocks.db.productVariant.deleteMany).not.toHaveBeenCalled();
   });
   it('toggles availability and audits it', async () => {
     expect(

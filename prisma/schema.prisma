@@ -114,6 +114,7 @@ model ProductVariant {
   product   Product     @relation(fields: [productId, storeId], references: [id, storeId])
   name      String
   price     Int
+  isActive  Boolean     @default(true)
   items     OrderItem[]
 
   @@unique([productId, name])

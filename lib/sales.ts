@@ -158,6 +158,7 @@ export async function prepareOrder(
     const variants = await tx.productVariant.findMany({
       where: {
         storeId: actor.storeId,
+        isActive: true,
         id: { in: input.lines.map((l) => l.variantId) },
       },
       include: { product: true },

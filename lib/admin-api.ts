@@ -53,7 +53,7 @@ export async function adminRequest(request: NextRequest, resource: string) {
           : resource === 'products'
             ? await db.product.findMany({
                 where: { storeId },
-                include: { variants: true },
+                include: { variants: { where: { isActive: true } } },
                 orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
               })
             : resource === 'toppings'
@@ -146,6 +146,14 @@ export async function adminRequest(request: NextRequest, resource: string) {
         const product = id
           ? await tx.product.update({ where: { id, storeId }, data: input })
           : await tx.product.create({ data: { ...input, storeId } });
+        await tx.productVariant.updateMany({
+          where: {
+            storeId,
+            productId: product.id,
+            name: { notIn: Object.keys(prices) },
+          },
+          data: { isActive: false },
+        });
         for (const [name, price] of Object.entries(prices))
           await tx.productVariant.upsert({
             where: { productId_name: { productId: product.id, name } },
@@ -155,11 +163,11 @@ export async function adminRequest(request: NextRequest, resource: string) {
               name,
               price,
             },
-            update: { price },
+            update: { price, isActive: true },
           });
         data = await tx.product.findUniqueOrThrow({
           where: { id: product.id },
-          include: { variants: true },
+          include: { variants: { where: { isActive: true } } },
         });
         auditData = { ...input, prices };
       } else if (resource === 'toppings') {

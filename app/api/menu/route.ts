@@ -16,7 +16,10 @@ export async function GET(request: NextRequest) {
         name: true,
         imageUrl: true,
         isAvailable: true,
-        variants: { select: { id: true, name: true, price: true } },
+        variants: {
+          where: { isActive: true },
+          select: { id: true, name: true, price: true },
+        },
       },
       orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
     });
