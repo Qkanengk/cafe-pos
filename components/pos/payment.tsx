@@ -1,7 +1,7 @@
 'use client';
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
-import { Banknote, QrCode, CheckCircle2 } from 'lucide-react';
+import { Banknote, QrCode, CheckCircle2, Delete } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { MoneyInput } from '@/components/ui/money-input';
 import { Dialog } from '@/components/ui/dialog';
@@ -144,108 +144,146 @@ export function PaymentDialog({
   return (
     <Dialog
       title={'Thanh toán ' + order.code}
-      wide={method === 'BANK_TRANSFER'}
+      className="payment-dialog"
+      wide
       onClose={() => {
         if (!busy) onClose();
       }}
     >
-      <div className="mb-5 flex gap-3">
-        <Button
-          aria-pressed={method === 'CASH'}
-          className={
-            method === 'CASH'
-              ? ''
-              : 'bg-stone-100 text-stone-700 hover:bg-stone-200'
-          }
-          onClick={() => {
-            setMethod('CASH');
-            setError('');
-          }}
-          disabled={busy}
-        >
-          <Banknote size={20} className="mr-2" aria-hidden="true" />
-          Tiền mặt
-        </Button>
-        <Button
-          aria-pressed={method === 'BANK_TRANSFER'}
-          className={
-            method === 'BANK_TRANSFER'
-              ? ''
-              : 'bg-stone-100 text-stone-700 hover:bg-stone-200'
-          }
-          onClick={() => {
-            setMethod('BANK_TRANSFER');
-            setError('');
-          }}
-          disabled={busy}
-        >
-          <QrCode size={20} className="mr-2" aria-hidden="true" />
-          Chuyển khoản
-        </Button>
-      </div>
-      <div
-        className={
-          method === 'BANK_TRANSFER' ? 'grid gap-7 sm:grid-cols-2' : ''
-        }
-      >
-        {method === 'BANK_TRANSFER' && (
-          <div className="flex min-h-80 items-center justify-center rounded-2xl border border-stone-200 bg-white">
-            {qr ? (
-              <Image
-                unoptimized
-                src={qr}
-                width={360}
-                height={360}
-                alt={'Mã VietQR ' + order.code}
-                className="h-auto w-full max-w-96"
-              />
-            ) : (
-              <p>Đang tạo mã QR tại máy…</p>
-            )}
-          </div>
-        )}
-        <div>
-          <div className="mb-5 rounded-2xl bg-emerald-50 p-5">
-            <p className="text-sm text-emerald-800">Số tiền cần thanh toán</p>
-            <p
-              data-testid="payment-total"
-              className="mt-2 text-4xl font-bold text-emerald-950"
+      <div className="payment-layout">
+        <aside className="payment-summary">
+          <p className="text-sm text-stone-500">Số tiền cần thanh toán</p>
+          <p
+            data-testid="payment-total"
+            className="mt-2 text-3xl font-semibold tracking-tight"
+          >
+            {formatVnd(order.total)}
+          </p>
+          <p className="mt-3 text-xs text-stone-500">
+            Nội dung: <strong className="text-stone-700">{order.code}</strong>
+          </p>
+          <div className="mt-7 grid gap-2">
+            <Button
+              aria-pressed={method === 'CASH'}
+              className={
+                method === 'CASH'
+                  ? ''
+                  : 'border border-stone-300 bg-white text-stone-700 hover:bg-stone-50'
+              }
+              onClick={() => {
+                setMethod('CASH');
+                setError('');
+              }}
+              disabled={busy}
             >
-              {formatVnd(order.total)}
-            </p>
-            <p className="mt-2 text-sm text-stone-500">
-              Nội dung: {order.code}
-            </p>
+              <Banknote size={20} className="mr-2" aria-hidden="true" />
+              Tiền mặt
+            </Button>
+            <Button
+              aria-pressed={method === 'BANK_TRANSFER'}
+              className={
+                method === 'BANK_TRANSFER'
+                  ? ''
+                  : 'border border-stone-300 bg-white text-stone-700 hover:bg-stone-50'
+              }
+              onClick={() => {
+                setMethod('BANK_TRANSFER');
+                setError('');
+              }}
+              disabled={busy}
+            >
+              <QrCode size={20} className="mr-2" aria-hidden="true" />
+              Chuyển khoản
+            </Button>
           </div>
+          <p className="mt-auto pt-8 text-xs leading-5 text-stone-500">
+            Thanh toán theo phiên bản đơn hiện tại. Đóng để tiếp tục giữ/sửa
+            đơn.
+          </p>
+        </aside>
+        <div className="payment-entry">
           {method === 'CASH' ? (
             <>
-              <label className="block space-y-2 font-medium">
-                <span>Tiền khách đưa (₫)</span>
-                <MoneyInput
-                  aria-label="Tiền khách đưa"
-                  min={0}
-                  step={1}
-                  value={received}
-                  onValueChange={setReceived}
-                  className="text-2xl"
-                  inputMode="numeric"
-                />
-              </label>
-              <div className="my-4 flex flex-wrap gap-2">
-                {cashSuggestions(order.total).map((value) => (
+              <div className="mb-2 flex items-center justify-between">
+                <label htmlFor="cash-received" className="font-medium">
+                  Tiền khách đưa (₫)
+                </label>
+                <button
+                  type="button"
+                  disabled={busy}
+                  aria-label="Xóa tiền khách đưa"
+                  onClick={() => setReceived('')}
+                  className="h-9 w-12 rounded-md border border-stone-300 font-semibold"
+                >
+                  C
+                </button>
+              </div>
+              <MoneyInput
+                id="cash-received"
+                aria-label="Tiền khách đưa"
+                min={0}
+                step={1}
+                value={received}
+                onValueChange={setReceived}
+                className="h-14 text-right text-2xl font-semibold"
+                inputMode="numeric"
+              />
+              <div className="my-3 grid grid-cols-4 gap-2">
+                {cashSuggestions(order.total)
+                  .slice(0, 4)
+                  .map((value) => (
+                    <button
+                      type="button"
+                      data-testid="cash-suggestion"
+                      aria-label={'Khách đưa ' + value}
+                      key={value}
+                      onClick={() => setReceived(String(value))}
+                      disabled={busy}
+                      className="min-h-10 rounded-md border border-stone-300 px-1 text-xs font-medium hover:bg-stone-50"
+                    >
+                      {formatVnd(value)}
+                    </button>
+                  ))}
+              </div>
+              <div className="cash-keypad">
+                {[
+                  '1',
+                  '2',
+                  '3',
+                  '4',
+                  '5',
+                  '6',
+                  '7',
+                  '8',
+                  '9',
+                  '000',
+                  '0',
+                  'backspace',
+                ].map((key) => (
                   <button
                     type="button"
-                    data-testid="cash-suggestion"
-                    aria-label={'Khách đưa ' + value}
-                    key={value}
-                    onClick={() => setReceived(String(value))}
-                    className="min-h-12 rounded-xl border border-emerald-200 bg-emerald-50 px-4 font-semibold text-emerald-900"
+                    key={key}
+                    disabled={busy}
+                    aria-label={key === 'backspace' ? 'Xóa chữ số cuối' : key}
+                    onClick={() =>
+                      setReceived((current) =>
+                        key === 'backspace'
+                          ? current.slice(0, -1)
+                          : ((current === '0' ? '' : current) + key)
+                              .replace(/^0+(?=\d)/, '')
+                              .slice(0, 10),
+                      )
+                    }
                   >
-                    {formatVnd(value)}
+                    {key === 'backspace' ? (
+                      <Delete size={23} aria-hidden="true" />
+                    ) : (
+                      key
+                    )}
                   </button>
                 ))}
               </div>
-              <div className="mb-5 flex items-center justify-between rounded-xl bg-stone-100 p-4">
+              <div className="my-4 flex items-center justify-between border-t border-stone-200 pt-4">
                 <span>Tiền thối</span>
                 <strong data-testid="cash-change" className="text-2xl">
                   {change === null ? '—' : formatVnd(change)}
@@ -259,21 +297,35 @@ export function PaymentDialog({
             </>
           ) : (
             <>
-              <dl className="space-y-3 rounded-xl bg-stone-50 p-4">
+              <div className="mb-4 flex items-center justify-center rounded-md border border-stone-200">
+                {qr ? (
+                  <Image
+                    unoptimized
+                    src={qr}
+                    width={300}
+                    height={300}
+                    alt={'Mã VietQR ' + order.code}
+                    className="h-auto w-full max-w-72"
+                  />
+                ) : (
+                  <p className="py-20">Đang tạo mã QR tại máy…</p>
+                )}
+              </div>
+              <dl className="grid grid-cols-2 gap-3 text-sm">
                 <div>
                   <dt className="text-xs text-stone-500">Ngân hàng / BIN</dt>
                   <dd className="font-semibold">{bank.bankBin}</dd>
                 </div>
                 <div>
                   <dt className="text-xs text-stone-500">Số tài khoản</dt>
-                  <dd className="text-2xl font-bold">{bank.bankAccount}</dd>
+                  <dd className="font-semibold">{bank.bankAccount}</dd>
                 </div>
                 <div>
                   <dt className="text-xs text-stone-500">Chủ tài khoản</dt>
                   <dd className="font-semibold">{bank.bankAccountName}</dd>
                 </div>
               </dl>
-              <label className="my-5 flex min-h-12 items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm">
+              <label className="my-4 flex min-h-12 items-center gap-3 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm">
                 <input
                   className="h-6 w-6 shrink-0 accent-emerald-800"
                   type="checkbox"
@@ -305,7 +357,7 @@ export function PaymentDialog({
             </p>
           )}
           <Button
-            className="w-full text-lg"
+            className="mt-auto min-h-12 w-full text-base"
             disabled={
               busy || (method === 'CASH' ? change === null : !confirmed || !qr)
             }
@@ -314,10 +366,6 @@ export function PaymentDialog({
             <CheckCircle2 size={22} className="mr-2" aria-hidden="true" />
             {busy ? 'Đang lưu…' : 'Xác nhận đã nhận tiền'}
           </Button>
-          <p className="mt-4 text-center text-xs text-stone-400">
-            Thanh toán theo phiên bản đơn hiện tại. Đóng để tiếp tục giữ/sửa
-            đơn.
-          </p>
         </div>
       </div>
     </Dialog>

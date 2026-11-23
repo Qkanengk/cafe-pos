@@ -279,3 +279,411 @@ button,
 select {
   cursor: pointer;
 }
+.workspace:has(.register) {
+  padding: 12px;
+  overflow: hidden;
+  scrollbar-gutter: auto;
+}
+.workspace > .register {
+  max-width: none;
+}
+.register {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+  font-size: 15px;
+}
+#register-toolbar:empty {
+  display: none;
+}
+#register-toolbar:has(.register-tools) {
+  flex: 1;
+  min-width: 0;
+}
+.app-toolbar:has(.register-tools) > .toolbar-location {
+  display: none;
+}
+.register-tools {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.register-search {
+  position: relative;
+  width: 190px;
+  flex-shrink: 0;
+}
+.register-search svg {
+  position: absolute;
+  top: 11px;
+  left: 10px;
+  color: #888b84;
+}
+.register-search input {
+  padding-left: 36px;
+  font-size: 13px;
+  min-height: 40px;
+  background: #f7f7f4;
+  border-color: #e1e1db;
+}
+.category-tabs {
+  display: flex;
+  align-items: stretch;
+  gap: 16px;
+  overflow-x: auto;
+  min-width: 0;
+  flex: 1;
+  scrollbar-width: none;
+}
+.category-tabs button {
+  min-height: 54px;
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+  color: #777a72;
+  font-size: 12px;
+  font-weight: 500;
+}
+.category-tabs button[aria-pressed='true'] {
+  border-bottom-color: #1f5f46;
+  color: #1f5f46;
+  font-weight: 600;
+}
+.register-shift {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  white-space: nowrap;
+}
+.register-shift span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+.register-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 384px;
+  gap: 12px;
+  flex: 1;
+  min-height: 0;
+}
+.product-area {
+  min-width: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.product-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+.product-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 7px;
+  height: 96px;
+  padding: 12px;
+  border: 1px solid #deded8;
+  border-left-width: 4px;
+  border-radius: 6px;
+  background-color: #fff;
+  text-align: left;
+  overflow: hidden;
+}
+.product-tile:hover:not(:disabled) {
+  border-color: #1f5f46;
+}
+.product-tile:active:not(:disabled) {
+  background-color: #edf1ec;
+}
+.product-tile:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.product-name {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.product-price {
+  font-size: 12px;
+  color: #777a72;
+}
+.product-photo {
+  background-size: cover;
+  background-position: center;
+  justify-content: flex-end;
+}
+.product-photo:before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(transparent, #000c);
+}
+.product-photo span {
+  position: relative;
+  color: white;
+}
+.product-tile[data-sold-out='true'] {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    #efefeb,
+    #efefeb 6px,
+    #f6f6f3 6px,
+    #f6f6f3 12px
+  ) !important;
+}
+.register-ticket {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid #deded8;
+  border-radius: 6px;
+  background: white;
+  padding: 14px;
+}
+.ticket-lines {
+  flex: 1;
+  min-height: 60px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.ticket-line {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 7px;
+  min-height: 40px;
+  min-width: 0;
+  flex: 1;
+  text-align: left;
+  font-size: 13px;
+}
+.ticket-amount {
+  white-space: nowrap;
+  text-align: right;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.8;
+}
+.ticket-footer {
+  flex-shrink: 0;
+  border-top: 1px solid #deded8;
+  padding-top: 12px;
+  margin-top: 8px;
+}
+.ticket-footer select {
+  min-height: 40px;
+}
+.ticket-actions {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 8px;
+}
+.ticket-actions button {
+  min-height: 56px;
+  padding-inline: 8px;
+}
+.offline-workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  height: 100%;
+}
+.offline-workspace > .register {
+  flex: 1;
+}
+.offline-workspace > p {
+  flex-shrink: 0;
+  padding: 8px 12px;
+  font-size: 12px;
+}
+.payment-dialog {
+  max-width: 850px;
+  padding: 24px;
+}
+.payment-dialog > header {
+  margin-bottom: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #deded8;
+}
+.payment-dialog > header h2 {
+  font-size: 18px;
+  font-weight: 600;
+}
+.payment-dialog > header button {
+  height: 36px;
+  width: 36px;
+  background: transparent;
+}
+.payment-layout {
+  display: grid;
+  grid-template-columns: 270px minmax(0, 1fr);
+  gap: 28px;
+  min-height: 550px;
+}
+.payment-summary {
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid #deded8;
+  padding-right: 24px;
+}
+.payment-entry {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.cash-keypad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+.cash-keypad button {
+  display: grid;
+  place-items: center;
+  min-height: 48px;
+  border: 1px solid #dcded7;
+  border-radius: 6px;
+  background: #f8f8f5;
+  font-size: 23px;
+  font-weight: 500;
+}
+.cash-keypad button:hover {
+  background: #eeefea;
+}
+@media (min-width: 1500px) {
+  .product-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+@media (max-width: 1150px) {
+  .product-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .register-grid {
+    grid-template-columns: minmax(0, 1fr) 360px;
+  }
+  .register-search {
+    width: 150px;
+  }
+  .register-shift {
+    display: none;
+  }
+}
+@media (max-width: 900px) {
+  .workspace:has(.register) {
+    overflow: auto;
+  }
+  .register {
+    height: auto;
+    min-height: 100%;
+  }
+  .register-grid {
+    display: flex;
+    flex-direction: column;
+  }
+  .product-area {
+    max-height: 52dvh;
+    flex-shrink: 0;
+  }
+  .register-ticket {
+    min-height: 380px;
+  }
+  .ticket-lines {
+    max-height: 45dvh;
+    flex: auto;
+  }
+  .register-tools {
+    flex-wrap: wrap;
+    gap: 0 10px;
+  }
+  .register-search {
+    width: 150px;
+  }
+  .category-tabs {
+    gap: 12px;
+  }
+  .offline-workspace {
+    height: auto;
+  }
+  .app-toolbar:has(.register-tools) {
+    min-height: 100px;
+    height: auto;
+    flex-wrap: wrap;
+    padding-block: 4px;
+  }
+  .app-toolbar:has(.register-tools) > #register-toolbar {
+    flex-basis: 100%;
+  }
+  .category-tabs button {
+    min-height: 42px;
+  }
+  .product-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .payment-layout {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    min-height: 0;
+  }
+  .payment-summary {
+    padding: 0;
+    border: 0;
+  }
+  .payment-summary > .grid {
+    display: flex;
+    margin-top: 16px;
+  }
+  .payment-summary > p:last-child {
+    display: none;
+  }
+  .payment-dialog {
+    padding: 16px;
+  }
+  .payment-entry {
+    min-height: 0;
+  }
+  .payment-summary > [data-testid='payment-total'] {
+    font-size: 28px;
+  }
+}
+@media (max-width: 480px) {
+  .product-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .product-tile {
+    height: 88px;
+  }
+  .register-tools {
+    gap: 0 8px;
+  }
+  .register-search {
+    width: 128px;
+  }
+  .register-tools input {
+    font-size: 12px;
+  }
+  .ticket-line {
+    font-size: 12px;
+  }
+  .payment-dialog {
+    max-height: 96dvh;
+  }
+  .cash-keypad button {
+    min-height: 44px;
+    font-size: 21px;
+  }
+}

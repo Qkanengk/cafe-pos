@@ -1,8 +1,8 @@
 'use client';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
+import { createPortal } from 'react-dom';
 import {
-  Coffee,
   Search,
   Plus,
   Minus,
@@ -71,6 +71,15 @@ const quickNotes = [
   'không đường',
   'mang ly riêng',
 ];
+const categoryColors = [
+  '#8d7156',
+  '#61798b',
+  '#83764f',
+  '#7b6c88',
+  '#628477',
+  '#8b6b6b',
+];
+const subscribeToToolbar = () => () => {};
 export function Terminal({
   actorId,
   products,
@@ -83,6 +92,11 @@ export function Terminal({
   initialTableId,
   offlineMode = false,
 }: Props) {
+  const toolbar = useSyncExternalStore(
+    subscribeToToolbar,
+    () => document.getElementById('register-toolbar'),
+    () => null,
+  );
   const [lines, setLines] = useState<Line[]>(() => orderLines(initialOrder));
   const [id, setId] = useState(() => initialOrder?.id ?? crypto.randomUUID());
   const [paymentId, setPaymentId] = useState(() => crypto.randomUUID());
@@ -541,40 +555,51 @@ export function Terminal({
     setType('TAKEAWAY');
   }
   return (
-    <div className="space-y-5">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[.2em] text-emerald-800">
-            Quầy bán hàng
-          </p>
-          <h1 className="mt-1 text-3xl font-bold">Một ly ngon, một ngày vui</h1>
-        </div>
-        <Link
-          href="/shifts"
-          className={
-            'rounded-full px-4 py-2 text-sm font-semibold ' +
-            (hasShift
-              ? 'bg-emerald-100 text-emerald-900'
-              : 'bg-amber-100 text-amber-900')
-          }
-        >
-          {hasShift ? 'Ca đang mở' : 'Mở ca để bán hàng'}
-        </Link>
-      </header>
+    <div className="register">
+      <h1 className="sr-only">Bán hàng</h1>
+      {toolbar &&
+        createPortal(
+          <div className="register-tools">
+            <div className="register-search">
+              <Search size={18} aria-hidden="true" />
+              <Input
+                aria-label="Tìm món"
+                placeholder="Tìm món…"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </div>
+            <div className="category-tabs" aria-label="Danh mục món">
+              {[{ id: '', name: 'Tất cả' }, ...categories].map((c) => (
+                <button
+                  type="button"
+                  key={c.id}
+                  aria-pressed={category === c.id}
+                  onClick={() => setCategory(c.id)}
+                >
+                  {c.name}
+                </button>
+              ))}
+            </div>
+            <Link
+              href="/shifts"
+              className={
+                'register-shift ' +
+                (!hasShift ? 'text-amber-800' : 'text-stone-500')
+              }
+            >
+              <span className={hasShift ? 'bg-emerald-800' : 'bg-amber-600'} />
+              {hasShift ? 'Ca đang mở' : 'Mở ca để bán hàng'}
+            </Link>
+          </div>,
+          toolbar,
+        )}
       {!cartReady && <p role="status">Đang khôi phục giỏ trên thiết bị…</p>}
       {storageError && (
         <p role="alert" className="rounded-xl bg-red-50 p-3">
           {storageError}
         </p>
       )}
-      <button
-        type="button"
-        disabled={busy || !cartReady}
-        className="min-h-11 text-sm underline"
-        onClick={discardCart}
-      >
-        Bỏ giỏ đang nhập (không hủy đơn đã giữ)
-      </button>
       {notice && (
         <p
           role="status"
@@ -739,44 +764,9 @@ export function Terminal({
           )}
         </section>
       )}
-      <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_380px] lg:grid-cols-[minmax(0,1fr)_340px]">
-        <section className="min-w-0 space-y-4">
-          <div className="relative">
-            <Search
-              className="absolute top-3 left-4 text-stone-400"
-              size={22}
-              aria-hidden="true"
-            />
-            <Input
-              aria-label="Tìm món"
-              placeholder="Tìm món theo tên…"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="pl-12"
-            />
-          </div>
-          <div
-            className="flex gap-2 overflow-x-auto pb-2"
-            aria-label="Danh mục món"
-          >
-            {[{ id: '', name: 'Tất cả' }, ...categories].map((c) => (
-              <button
-                type="button"
-                key={c.id}
-                aria-pressed={category === c.id}
-                onClick={() => setCategory(c.id)}
-                className={
-                  'min-h-12 shrink-0 rounded-xl px-4 font-semibold ' +
-                  (category === c.id
-                    ? 'bg-emerald-800 text-white'
-                    : 'border border-stone-200 bg-white text-stone-600')
-                }
-              >
-                {c.name}
-              </button>
-            ))}
-          </div>
-          <div className="grid grid-cols-2 gap-3 2xl:grid-cols-4 xl:grid-cols-3">
+      <div className="register-grid">
+        <section className="product-area">
+          <div className="product-grid">
             {products
               .filter(
                 (p) =>
@@ -797,32 +787,30 @@ export function Terminal({
                     !product.variants.length
                   }
                   onClick={() => add(product)}
-                  className="flex min-h-40 flex-col items-start rounded-2xl border border-stone-200 bg-white p-4 text-left shadow-xs transition hover:border-emerald-400 active:scale-[.98] disabled:cursor-not-allowed disabled:grayscale disabled:opacity-40"
+                  className={
+                    'product-tile ' + (product.imageUrl ? 'product-photo' : '')
+                  }
+                  data-sold-out={!product.isAvailable}
+                  style={{
+                    borderLeftColor:
+                      categoryColors[
+                        Math.max(
+                          0,
+                          categories.findIndex(
+                            (c) => c.id === product.categoryId,
+                          ),
+                        ) % categoryColors.length
+                      ],
+                    ...(product.imageUrl
+                      ? {
+                          backgroundImage:
+                            'url(' + JSON.stringify(product.imageUrl) + ')',
+                        }
+                      : {}),
+                  }}
                 >
-                  <div className="mb-3 flex h-14 w-full items-center justify-between">
-                    <span
-                      className="flex h-14 w-14 items-center justify-center rounded-xl bg-amber-50 bg-cover bg-center text-amber-900"
-                      style={
-                        product.imageUrl
-                          ? {
-                              backgroundImage:
-                                'url(' + JSON.stringify(product.imageUrl) + ')',
-                            }
-                          : undefined
-                      }
-                    >
-                      {!product.imageUrl && (
-                        <Coffee size={28} aria-hidden="true" />
-                      )}
-                    </span>
-                    <Plus
-                      size={20}
-                      className="text-emerald-800"
-                      aria-hidden="true"
-                    />
-                  </div>
-                  <span className="font-bold">{product.name}</span>
-                  <span className="mt-1 text-sm text-stone-500">
+                  <span className="product-name">{product.name}</span>
+                  <span className="product-price">
                     {product.isAvailable
                       ? startingPrice(product.variants.map((v) => v.price))
                       : 'Hết hàng'}
@@ -842,13 +830,26 @@ export function Terminal({
             </p>
           )}
         </section>
-        <aside className="rounded-2xl border border-stone-200 bg-white p-5 lg:sticky lg:top-5">
-          <h2 className="mb-4 flex items-center gap-2 text-xl font-bold">
-            <ShoppingBag size={22} aria-hidden="true" />
-            Đơn hiện tại{' '}
-            <span className="text-sm text-stone-400">({lines.length} món)</span>
-          </h2>
-          <div className="mb-4 flex gap-2">
+        <aside className="register-ticket">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <h2 aria-label="Đơn hiện tại" className="font-semibold">
+              {prepared?.code ?? 'Đơn mới'}{' '}
+              <span className="text-xs font-normal text-stone-500">
+                · {lines.length} món
+              </span>
+            </h2>
+            <button
+              type="button"
+              disabled={busy || !cartReady}
+              onClick={discardCart}
+              className="grid h-9 w-9 place-items-center rounded-md text-stone-500 hover:bg-stone-100"
+              aria-label="Bỏ giỏ đang nhập (không hủy đơn đã giữ)"
+              title="Bỏ giỏ đang nhập (không hủy đơn đã giữ)"
+            >
+              <Trash2 size={17} aria-hidden="true" />
+            </button>
+          </div>
+          <div className="mb-3 flex gap-1">
             {(['TAKEAWAY', 'DINE_IN'] as const).map((value) => (
               <button
                 key={value}
@@ -856,7 +857,7 @@ export function Terminal({
                 aria-pressed={type === value}
                 onClick={() => setType(value)}
                 className={
-                  'min-h-12 flex-1 rounded-xl border px-3 text-sm font-semibold ' +
+                  'min-h-10 flex-1 rounded-md border px-3 text-sm font-semibold ' +
                   (type === value
                     ? 'border-emerald-700 bg-emerald-50 text-emerald-900'
                     : 'border-stone-200')
@@ -882,10 +883,14 @@ export function Terminal({
               ))}
             </select>
           )}
-          <div className="max-h-[43vh] space-y-3 overflow-y-auto">
+          <div className="ticket-lines">
             {!lines.length && (
               <div className="py-12 text-center text-stone-400">
-                <Coffee size={42} className="mx-auto mb-3" aria-hidden="true" />
+                <ShoppingBag
+                  size={26}
+                  className="mx-auto mb-3"
+                  aria-hidden="true"
+                />
                 <p>Chạm vào món để bắt đầu</p>
               </div>
             )}
@@ -895,37 +900,40 @@ export function Terminal({
                 <div
                   key={line.id}
                   data-testid="cart-line"
-                  className="flex items-start justify-between gap-2 border-b border-stone-100 pb-3"
+                  className="flex items-start justify-between gap-1 border-b border-stone-200 py-3"
                 >
                   <button
                     disabled={busy}
-                    className="min-h-12 flex-1 text-left"
+                    className="ticket-line"
                     onClick={() => setEditor(line)}
                   >
-                    <span className="block font-semibold">
-                      {line.quantity} × {product.name}{' '}
-                      <span className="font-normal text-stone-400">
-                        / {variant.name}
+                    <span className="font-semibold">{line.quantity} ×</span>
+                    <span>
+                      <span className="block font-semibold">
+                        {product.name}{' '}
+                        <span className="font-normal text-stone-400">
+                          / {variant.name}
+                        </span>
                       </span>
+                      {selected.length > 0 && (
+                        <span className="mt-1 block text-xs text-stone-500">
+                          {selected.map((t) => t.name).join(', ')}
+                        </span>
+                      )}
+                      {line.note && (
+                        <span className="mt-1 block text-xs text-emerald-800">
+                          {line.note}
+                        </span>
+                      )}
                     </span>
-                    {selected.length > 0 && (
-                      <span className="mt-1 block text-xs text-stone-500">
-                        {selected.map((t) => t.name).join(', ')}
-                      </span>
-                    )}
-                    {line.note && (
-                      <span className="mt-1 block text-xs text-emerald-800">
-                        {line.note}
-                      </span>
-                    )}
-                    <span className="mt-2 block text-sm font-semibold">
+                    <span className="ticket-amount">
                       {formatVnd(lineTotal(money))}
                     </span>
                   </button>
                   <button
                     disabled={busy || !!line.snapshot}
                     aria-label={'Xóa ' + product.name}
-                    className="flex h-12 w-10 items-center justify-center text-stone-400 hover:text-red-700"
+                    className="flex h-10 w-6 shrink-0 items-center justify-center text-stone-400 hover:text-red-700 disabled:opacity-30"
                     onClick={() =>
                       setLines(lines.filter((l) => l.id !== line.id))
                     }
@@ -936,7 +944,7 @@ export function Terminal({
               );
             })}
           </div>
-          <div className="mt-4 border-t border-stone-100 pt-4">
+          <div className="ticket-footer">
             <div className="mb-3 flex justify-between text-sm text-stone-500">
               <span>Tạm tính</span>
               <span>{formatVnd(totals.subtotal)}</span>
@@ -1003,20 +1011,31 @@ export function Terminal({
                 đơn.
               </p>
             )}
-            <Button
-              className="w-full py-4 text-lg"
-              disabled={busy || !hasShift || !lines.length || !valid}
-              onClick={() => checkout()}
-            >
-              {busy ? 'Đang chốt đơn…' : 'Thanh toán'}
-            </Button>
-            <Button
-              className="mt-3 w-full border border-emerald-700 bg-white text-emerald-900 hover:bg-emerald-50"
-              disabled={busy || !hasShift || !lines.length || !valid}
-              onClick={() => checkout(true)}
-            >
-              Giữ đơn / Tạm tính
-            </Button>
+            <div className="ticket-actions">
+              <Button
+                className="order-2 text-sm"
+                aria-label={busy ? 'Đang chốt đơn…' : 'Thanh toán'}
+                disabled={busy || !hasShift || !lines.length || !valid}
+                onClick={() => checkout()}
+              >
+                {busy ? (
+                  'Đang chốt đơn…'
+                ) : (
+                  <>
+                    Thanh toán{' '}
+                    <span className="ml-2">{formatVnd(totals.total)}</span>
+                  </>
+                )}
+              </Button>
+              <Button
+                className="order-1 border border-stone-300 bg-white text-sm text-stone-700 hover:bg-stone-50"
+                aria-label="Giữ đơn / Tạm tính"
+                disabled={busy || !hasShift || !lines.length || !valid}
+                onClick={() => checkout(true)}
+              >
+                Giữ đơn
+              </Button>
+            </div>
           </div>
         </aside>
       </div>

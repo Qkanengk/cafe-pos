@@ -53,7 +53,7 @@ export function OfflineWorkspace() {
     );
   if (!snapshot) return <p>Đang mở dữ liệu trên thiết bị…</p>;
   return (
-    <div className="space-y-4">
+    <div className="offline-workspace">
       <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-950">
         Dùng thực đơn và ca đã lưu. Mã TAM là mã tạm; mã bill chính thức được
         cấp sau đồng bộ. Đơn giữ ngoại tuyến ở trên thiết bị đến khi thanh toán.

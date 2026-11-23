@@ -95,6 +95,7 @@ export function AppFrame({
                 'Bán hàng'}
             </strong>
           </span>
+          <div id="register-toolbar" />
           <OfflineStatus />
         </header>
         <main className="workspace">{children}</main>

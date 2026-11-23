@@ -298,6 +298,23 @@ try {
   await expect(
     payDialog.getByRole('button', { name: 'Xác nhận đã nhận tiền' }),
   ).toBeDisabled();
+  await payDialog
+    .getByRole('button', { name: 'Xóa tiền khách đưa', exact: true })
+    .click();
+  for (const digit of ['2', '000', '0', '0'])
+    await payDialog.getByRole('button', { name: digit, exact: true }).click();
+  await expect(
+    payDialog.getByLabel('Tiền khách đưa', { exact: true }),
+  ).toHaveValue('200.000');
+  await payDialog
+    .getByRole('button', { name: 'Xóa chữ số cuối', exact: true })
+    .click();
+  await expect(
+    payDialog.getByRole('button', { name: 'Xác nhận đã nhận tiền' }),
+  ).toBeDisabled();
+  await payDialog
+    .getByRole('button', { name: 'Xóa tiền khách đưa', exact: true })
+    .click();
   const suggestions = payDialog.getByTestId('cash-suggestion');
   let tender;
   for (let i = 0; i < (await suggestions.count()); i++) {
