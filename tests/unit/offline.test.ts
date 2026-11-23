@@ -180,7 +180,6 @@ describe('local sale snapshots', () => {
     const newer = snapshot();
     newer.catalogToken = 'new-signed-catalog';
     newer.products[0].variants[0].price = 50000;
-    newer.shift!.id = 'new-shift';
     vi.mocked(fetch).mockResolvedValue(Response.json(newer));
     await refreshSnapshot();
     const paid = await payLocal(order, { method: 'CASH', received: 30000 });
@@ -197,6 +196,21 @@ describe('local sale snapshots', () => {
       payLocal(order, { method: 'CASH', received: 30000 }),
     ).rejects.toThrow('Không tìm thấy');
     expect(mem.db.outbox.rows.size).toBe(0);
+  });
+  it('blocks payment when the cached open shift has changed or is closed', async () => {
+    const order = await prepareLocal(input());
+    const newer = snapshot();
+    newer.shift!.id = 'new-shift';
+    mem.db.snapshots.rows.set('active', { id: 'active', data: newer });
+    await expect(
+      payLocal(order, { method: 'CASH', received: 30000 }),
+    ).rejects.toThrow('Ca của đơn đã thay đổi');
+    newer.shift = null;
+    await expect(
+      payLocal(order, { method: 'BANK_TRANSFER', confirmed: true }),
+    ).rejects.toThrow('Không tìm thấy đơn/ca');
+    expect(mem.db.outbox.rows.size).toBe(0);
+    expect(mem.db.drafts.rows.has(order.id)).toBe(true);
   });
   it('rejects legacy drafts without a sale-time catalog instead of using current prices', async () => {
     const order = await prepareLocal(input());

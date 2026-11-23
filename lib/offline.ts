@@ -155,6 +155,10 @@ export async function payLocal(
   const draft = await local.drafts.get(order.id);
   if (!draft || draft.userId !== snapshot.user.id || !snapshot.shift)
     throw new Error('Không tìm thấy đơn/ca ngoại tuyến của nhân viên này');
+  if (draft.shiftId && draft.shiftId !== snapshot.shift.id)
+    throw new Error(
+      'Ca của đơn đã thay đổi. Chưa nhận tiền: hãy mở lại đơn và kiểm tra trong ca hiện tại. Đơn cũ vẫn được giữ trên thiết bị.',
+    );
   const content = (sale: SaleOrder) =>
     JSON.stringify([
       sale.type,
