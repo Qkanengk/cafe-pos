@@ -1223,6 +1223,10 @@ select {
   }
 }
 @media (max-width: 480px) {
+  .table-scroll {
+    max-width: 100%;
+    min-width: 0;
+  }
   .product-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1248,4 +1252,43 @@ select {
     min-height: 44px;
     font-size: 21px;
   }
+}
+@media (min-width: 768px) and (max-width: 900px) {
+  .workspace:has(.register) {
+    overflow: hidden;
+  }
+  .register {
+    height: 100%;
+    min-height: 0;
+  }
+  .register-grid {
+    flex: 1;
+    min-height: 0;
+  }
+  .product-area {
+    flex: 0 1 32%;
+    max-height: 32%;
+    min-height: 0;
+  }
+  .register-ticket {
+    flex: 1;
+    min-height: 0;
+  }
+  .ticket-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+  }
+  .register-ticket > .ticket-footer {
+    max-height: 85%;
+    overflow-y: auto;
+  }
+  .offline-workspace {
+    height: 100%;
+  }
+}
+.table-scroll {
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
 }
