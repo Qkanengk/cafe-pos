@@ -1,5 +1,4 @@
-CREATE TABLE "_ProductToppings" ("A" TEXT NOT NULL, "B" TEXT NOT NULL);
-CREATE UNIQUE INDEX "_ProductToppings_AB_unique" ON "_ProductToppings"("A", "B");
+CREATE TABLE "_ProductToppings" ("A" TEXT NOT NULL, "B" TEXT NOT NULL, CONSTRAINT "_ProductToppings_AB_pkey" PRIMARY KEY ("A", "B"));
 CREATE INDEX "_ProductToppings_B_index" ON "_ProductToppings"("B");
 ALTER TABLE "_ProductToppings" ADD CONSTRAINT "_ProductToppings_A_fkey" FOREIGN KEY ("A") REFERENCES "Product"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "_ProductToppings" ADD CONSTRAINT "_ProductToppings_B_fkey" FOREIGN KEY ("B") REFERENCES "Topping"("id") ON DELETE CASCADE ON UPDATE CASCADE;

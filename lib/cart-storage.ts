@@ -83,6 +83,19 @@ export type WorkingCart = {
   prepared: SaleOrder | null;
 };
 const prefix = (userId: string) => 'cafe-pos-working:' + userId + ':';
+export function tabPaymentId(
+  userId: string,
+  orderId: string,
+  fallback: string,
+) {
+  try {
+    const key = prefix(userId) + 'payment:' + orderId;
+    const saved = sessionStorage.getItem(key);
+    if (saved && z.uuid().safeParse(saved).success) return saved;
+    sessionStorage.setItem(key, fallback);
+  } catch {}
+  return fallback;
+}
 const recordKey = (userId: string, id: string) =>
   prefix(userId) + 'order:' + id;
 const pointerKey = (userId: string, scope: string) =>

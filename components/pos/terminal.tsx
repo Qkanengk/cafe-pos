@@ -26,6 +26,7 @@ import {
   readWorkingCart,
   saveWorkingCart,
   clearWorkingCart,
+  tabPaymentId,
 } from '@/lib/cart-storage';
 import {
   orderLines,
@@ -146,7 +147,7 @@ export function Terminal({
         if (saved) {
           setLines(saved.lines);
           setId(saved.id);
-          setPaymentId(saved.paymentId);
+          setPaymentId((current) => tabPaymentId(actorId, saved.id, current));
           setType(saved.type);
           setTableId(saved.tableId);
           setDiscountType(saved.discountType);
@@ -171,19 +172,19 @@ export function Terminal({
     };
   }, [actorId, initialOrder?.id, initialTableId]);
   useEffect(() => {
-    if (
-      !cartReady ||
-      storageError ||
-      (!lines.length &&
-        !prepared &&
-        type === 'TAKEAWAY' &&
-        discountValue === '0')
-    )
-      return;
+    if (!cartReady || storageError) return;
     let active = true;
     void Promise.resolve()
       .then(() => {
-        if (active)
+        if (!active) return;
+        if (
+          !lines.length &&
+          !prepared &&
+          type === 'TAKEAWAY' &&
+          discountValue === '0'
+        )
+          clearWorkingCart(actorId, cartScope, id);
+        else
           saveWorkingCart(actorId, cartScope, {
             version: 1,
             id,
@@ -324,6 +325,8 @@ export function Terminal({
       setPrepared(null);
       setLines([]);
       setId(crypto.randomUUID());
+      setPaymentId(crypto.randomUUID());
+      setCartScope('new');
       setTableId('');
       setType('TAKEAWAY');
       setDiscountValue('0');
@@ -446,6 +449,7 @@ export function Terminal({
       setError('Đang khôi phục giỏ. Vui lòng chờ một chút.');
       return;
     }
+    setPaymentId((current) => tabPaymentId(actorId, id, current));
     const input = checkoutSchema.safeParse({
       id,
       type,

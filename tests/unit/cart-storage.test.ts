@@ -3,6 +3,7 @@ import {
   readWorkingCart,
   saveWorkingCart,
   clearWorkingCart,
+  tabPaymentId,
   type WorkingCart,
 } from '../../lib/cart-storage';
 const values = new Map<string, string>();
@@ -39,6 +40,17 @@ const cart = (): WorkingCart => ({
   discountType: 'AMOUNT',
   discountValue: '5.000',
   prepared: null,
+});
+it('keeps retries stable within a tab without making another window reuse the same payment identity', () => {
+  let tab = new Map<string, string>();
+  vi.stubGlobal('sessionStorage', {
+    getItem: (key: string) => tab.get(key) ?? null,
+    setItem: (key: string, value: string) => tab.set(key, value),
+  });
+  expect(tabPaymentId('user', id, id)).toBe(id);
+  expect(tabPaymentId('user', id, other)).toBe(id);
+  tab = new Map();
+  expect(tabPaymentId('user', id, other)).toBe(other);
 });
 it('restores the same order/payment UUID, modifiers, table and discount after reload', () => {
   saveWorkingCart('user', 'new', cart());
