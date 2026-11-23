@@ -9,7 +9,7 @@ export function Button({
     <button
       className={twMerge(
         clsx(
-          'inline-flex min-h-12 items-center justify-center rounded-xl bg-emerald-800 px-5 py-3 font-semibold text-white transition hover:bg-emerald-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:opacity-50',
+          'inline-flex min-h-10 items-center justify-center rounded-md bg-emerald-800 px-4 py-2 font-semibold text-white transition hover:bg-emerald-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:opacity-50',
           className,
         ),
       )}

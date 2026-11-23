@@ -25,6 +25,26 @@ async function cachePage(cache, path) {
     assets.map(async (path) => {
       const response = await fetch(path);
       if (!response.ok) throw new Error('Asset unavailable');
+      if (response.headers.get('Content-Type')?.includes('text/css')) {
+        const css = await response.clone().text();
+        const fonts = [
+          ...new Set(
+            [...css.matchAll(/url\(["']?([^"')]+\.woff2?)["']?\)/g)].map(
+              (match) =>
+                new URL(match[1], new URL(path, self.location.origin)).href,
+            ),
+          ),
+        ];
+        await Promise.all(
+          fonts
+            .filter((font) => new URL(font).origin === self.location.origin)
+            .map(async (font) => {
+              const file = await fetch(font);
+              if (!file.ok) throw new Error('Font unavailable');
+              await cache.put(font, file);
+            }),
+        );
+      }
       await cache.put(path, response);
     }),
   );
