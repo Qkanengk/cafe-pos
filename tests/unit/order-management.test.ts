@@ -1,4 +1,5 @@
 import { beforeEach, describe, it, expect, vi } from 'vitest';
+import { createHash } from 'node:crypto';
 const mocks = vi.hoisted(() => {
   const model = () => ({
     findFirst: vi.fn(),
@@ -137,6 +138,27 @@ beforeEach(() => {
   mocks.db.orderItem.create.mockResolvedValue({ id: 'new-item' });
 });
 describe('held order transactions', () => {
+  it('replays the exact same edit after a lost response without duplicating additions', async () => {
+    const input = {
+      version: 1,
+      order: checkoutSchema.parse({
+        id,
+        type: 'TAKEAWAY',
+        lines: [{ variantId: id, quantity: 1 }],
+      }),
+    };
+    const saved = {
+      ...fixture(),
+      version: 2,
+      requestHash: createHash('sha256')
+        .update('edit:' + actor.id + ':' + JSON.stringify(input))
+        .digest('hex'),
+    };
+    mocks.db.order.findFirst.mockResolvedValueOnce(saved);
+    expect(await editOrder(actor, id, input)).toEqual(saved);
+    expect(mocks.db.orderItem.create).not.toHaveBeenCalled();
+    expect(mocks.db.order.update).not.toHaveBeenCalled();
+  });
   it('shares owner PIN lockout across void/cancel and IP changes', async () => {
     for (let i = 0; i < 5; i++)
       await expect(

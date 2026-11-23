@@ -1,4 +1,5 @@
 import { compare } from 'bcryptjs';
+import { createHash } from 'node:crypto';
 import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { db } from './db';
@@ -16,12 +17,25 @@ export const conflict =
 export function checkVersion(actual: number, expected: number) {
   if (actual !== expected) throw new HttpError(conflict, 409);
 }
-async function activeOrder(tx: Tx, actor: Actor, id: string, version: number) {
+async function activeOrder(
+  tx: Tx,
+  actor: Actor,
+  id: string,
+  version: number,
+  replayHash?: string,
+) {
   const order = await tx.order.findFirst({
     where: { id, storeId: actor.storeId },
     include: orderInclude,
   });
   if (!order) throw new HttpError('Không tìm thấy đơn', 404);
+  if (
+    replayHash &&
+    order.status === 'OPEN' &&
+    order.version === version + 1 &&
+    order.requestHash === replayHash
+  )
+    return order;
   checkVersion(order.version, version);
   if (order.status !== 'OPEN')
     throw new HttpError('Chỉ được sửa đơn đang mở', 409);
@@ -72,6 +86,7 @@ async function recompute(
   tx: Tx,
   id: string,
   override?: { type: 'AMOUNT'; value: number },
+  requestHash?: string,
 ) {
   const order = await tx.order.findUniqueOrThrow({
     where: { id },
@@ -91,7 +106,7 @@ async function recompute(
       subtotal: money.subtotal,
       total: money.total,
       version: { increment: 1 },
-      requestHash: null,
+      requestHash: requestHash ?? null,
       ...(override
         ? { discountType: override.type, discountValue: override.value }
         : {}),
@@ -130,7 +145,11 @@ export async function editOrder(
 ) {
   return db.$transaction(async (tx) => {
     await authorizeActor(tx, actor);
-    const order = await activeOrder(tx, actor, id, input.version);
+    const requestHash = createHash('sha256')
+      .update('edit:' + actor.id + ':' + JSON.stringify(input))
+      .digest('hex');
+    const order = await activeOrder(tx, actor, id, input.version, requestHash);
+    if (order.version !== input.version) return order;
     const body = input.order;
     if (body.id !== id) throw new HttpError('Mã đơn không hợp lệ');
     if (body.type === 'DINE_IN' && body.tableId !== order.tableId)
@@ -207,7 +226,7 @@ export async function editOrder(
         note: body.note,
       },
     });
-    const updated = await recompute(tx, id);
+    const updated = await recompute(tx, id, undefined, requestHash);
     await audit(tx, actor, id, 'HOLD', {
       previousVersion: order.version,
       version: updated.version,

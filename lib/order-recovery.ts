@@ -1,0 +1,58 @@
+import type { SaleOrder } from './sales-types';
+export type WorkingLine = {
+  id: string;
+  productId: string;
+  variantId: string;
+  quantity: number;
+  toppingIds: string[];
+  note: string;
+  snapshot?: SaleOrder['items'][number];
+};
+export function orderLines(order?: SaleOrder): WorkingLine[] {
+  return (
+    order?.items
+      .filter((i) => i.status === 'ACTIVE')
+      .map((i) => ({
+        id: i.id,
+        productId: i.productId,
+        variantId: i.variantId,
+        quantity: i.quantity,
+        toppingIds: i.toppings.map((t) => t.toppingId),
+        note: i.note,
+        snapshot: i,
+      })) ?? []
+  );
+}
+export function reapplyPending(
+  base: SaleOrder,
+  fresh: SaleOrder,
+  working: WorkingLine[],
+) {
+  if (fresh.id !== base.id || fresh.status !== 'OPEN')
+    throw new Error('Đơn không còn mở. Món chưa lưu vẫn được giữ để kiểm tra.');
+  const merged = orderLines(fresh);
+  for (const line of working) {
+    const old = base.items.find((i) => i.id === line.snapshot?.id);
+    if (!old) {
+      merged.push({ ...line, snapshot: undefined });
+      continue;
+    }
+    const delta = Math.max(0, line.quantity - old.quantity);
+    const current = merged.find((i) => i.id === old.id);
+    if (current) {
+      current.quantity += delta;
+      if (line.note !== old.note) current.note = line.note;
+    } else if (delta > 0)
+      merged.push({
+        ...line,
+        id: 'pending-' + line.id,
+        quantity: delta,
+        snapshot: undefined,
+      });
+  }
+  if (merged.some((line) => line.quantity > 99))
+    throw new Error(
+      'Số lượng sau ghép vượt 99. Món chưa lưu vẫn được giữ; hãy kiểm tra lại.',
+    );
+  return merged;
+}

@@ -21,6 +21,12 @@ import { PrintLinks } from './print-links';
 import { OrderTools } from './order-tools';
 import { prepareLocal, syncedCode } from '@/lib/offline';
 import { checkoutWithFallback } from '@/lib/checkout-client';
+import { posFetch } from '@/lib/pos-fetch';
+import {
+  orderLines,
+  reapplyPending,
+  type WorkingLine as Line,
+} from '@/lib/order-recovery';
 import {
   cartTotal,
   lineTotal,
@@ -37,15 +43,6 @@ import type {
   BankDetails,
 } from '@/lib/sales-types';
 
-type Line = {
-  id: string;
-  productId: string;
-  variantId: string;
-  quantity: number;
-  toppingIds: string[];
-  note: string;
-  snapshot?: SaleOrder['items'][number];
-};
 type Props = {
   products: MenuProduct[];
   categories: { id: string; name: string }[];
@@ -57,21 +54,6 @@ type Props = {
   initialTableId?: string;
   offlineMode?: boolean;
 };
-function orderLines(order?: SaleOrder): Line[] {
-  return (
-    order?.items
-      .filter((i) => i.status === 'ACTIVE')
-      .map((i) => ({
-        id: i.id,
-        productId: i.productId,
-        variantId: i.variantId,
-        quantity: i.quantity,
-        toppingIds: i.toppings.map((t) => t.toppingId),
-        note: i.note,
-        snapshot: i,
-      })) ?? []
-  );
-}
 const quickNotes = [
   'ít đá',
   'ít đường',
@@ -137,6 +119,26 @@ export function Terminal({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [recovery, setRecovery] = useState<SaleOrder | null>(null);
+  async function recover() {
+    setBusy(true);
+    try {
+      const response = await posFetch('/api/orders/' + id, {
+        cache: 'no-store',
+      });
+      const fresh = await response.json();
+      if (!response.ok) throw new Error(fresh.error);
+      setRecovery(fresh);
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : 'Không thể nạp đơn. Giỏ chưa lưu vẫn được giữ.',
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
   const dirty =
     !!prepared &&
     (lines.some(
@@ -348,6 +350,75 @@ export function Terminal({
             Đơn mới
           </a>
         </p>
+      )}
+      {recovery && (
+        <Dialog
+          title="Đối chiếu đơn đã thay đổi"
+          onClose={() => setRecovery(null)}
+        >
+          <div className="space-y-4">
+            <p>
+              Giỏ hiện tại chưa bị xóa. Bản máy chủ {recovery.code} · v
+              {recovery.version} · {recovery.status}.
+            </p>
+            <h3 className="font-bold">Món trên máy chủ</h3>
+            {recovery.items
+              .filter((i) => i.status === 'ACTIVE')
+              .map((i) => (
+                <p key={i.id}>
+                  {i.quantity} × {i.nameSnapshot} · {i.note}
+                </p>
+              ))}
+            <h3 className="font-bold">Giỏ của bạn (chưa lưu)</h3>
+            {lines.map((line) => (
+              <p key={line.id}>
+                {line.quantity} ×{' '}
+                {products.find((p) => p.id === line.productId)?.name ??
+                  line.snapshot?.nameSnapshot}{' '}
+                · {line.note}
+              </p>
+            ))}
+            {recovery.status === 'OPEN' && prepared ? (
+              <>
+                <p>
+                  Ghép chỉ thêm món/số lượng bạn vừa tăng vào bản mới; không
+                  khôi phục món đã hủy. Ghi chú bạn sửa được ưu tiên. Kiểm tra
+                  lại giảm giá và bàn sau khi ghép.
+                </p>
+                <Button
+                  onClick={() => {
+                    try {
+                      const merged = reapplyPending(prepared, recovery, lines);
+                      load(recovery);
+                      setLines(merged);
+                      setRecovery(null);
+                      setError('');
+                      setNotice(
+                        'Đã ghép món chưa lưu vào bản mới. Kiểm tra rồi Giữ đơn để lưu.',
+                      );
+                    } catch (error) {
+                      setError(
+                        error instanceof Error
+                          ? error.message
+                          : 'Không thể ghép đơn',
+                      );
+                    }
+                  }}
+                >
+                  Ghép món chưa lưu vào bản mới
+                </Button>
+              </>
+            ) : (
+              <p role="alert">
+                Đơn không còn mở. Không thể ghép; giỏ chưa lưu vẫn ở màn hình
+                này để kiểm tra.{' '}
+                <a className="underline" href="/orders">
+                  Tìm hóa đơn
+                </a>
+              </p>
+            )}
+          </div>
+        </Dialog>
       )}
       {prepared && (
         <section className="space-y-3 rounded-2xl border border-stone-200 bg-white p-4">
@@ -652,12 +723,14 @@ export function Terminal({
               >
                 {error}{' '}
                 {error.includes('tải lại') && (
-                  <a
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void recover()}
                     className="font-bold underline"
-                    href={'/pos?orderId=' + id}
                   >
-                    Tải lại đơn
-                  </a>
+                    Tải bản mới, giữ món chưa lưu
+                  </button>
                 )}
               </p>
             )}
