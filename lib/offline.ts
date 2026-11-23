@@ -1,5 +1,6 @@
 'use client';
 import Dexie, { type EntityTable } from 'dexie';
+import { posFetch } from './pos-fetch';
 import { cartTotal, changeDue } from './money';
 import type { OfflineSnapshot, LocalDraft } from './offline-types';
 import type { SyncEntry } from './sync-validation';
@@ -39,7 +40,7 @@ export async function cachedSnapshot() {
   return record.data;
 }
 export async function refreshSnapshot() {
-  const response = await fetch('/api/menu', { cache: 'no-store' });
+  const response = await posFetch('/api/menu', { cache: 'no-store' });
   if (!response.ok) throw new Error('Kết nối và đăng nhập lại để đồng bộ.');
   const data: OfflineSnapshot = await response.json();
   await local.snapshots.put({ id: 'active', data });
@@ -145,7 +146,7 @@ export async function payLocal(
     );
   const existing = await local.outbox.get(order.id);
   if (existing) return existing.order;
-  const id = crypto.randomUUID(),
+  const id = payment.id ?? crypto.randomUUID(),
     paidAt = new Date().toISOString();
   const received = payment.method === 'CASH' ? payment.received : null;
   const change =
@@ -238,7 +239,7 @@ export async function syncPending() {
       .sort((a, b) => (a.retryAt ?? 0) - (b.retryAt ?? 0))
       .slice(0, 20);
     if (!pending.length) return;
-    const response = await fetch('/api/sync', {
+    const response = await posFetch('/api/sync', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ entries: pending.map((p) => p.entry) }),

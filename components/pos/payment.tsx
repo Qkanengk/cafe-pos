@@ -8,6 +8,7 @@ import { Dialog } from '@/components/ui/dialog';
 import { cashSuggestions, changeDue, formatVnd } from '@/lib/money';
 import { renderVietQR } from '@/lib/vietqr';
 import { payLocal } from '@/lib/offline';
+import { posFetch } from '@/lib/pos-fetch';
 import type { SaleOrder, BankDetails } from '@/lib/sales-types';
 export function PaymentDialog({
   order,
@@ -26,6 +27,7 @@ export function PaymentDialog({
   const [qr, setQr] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [paymentId] = useState(() => crypto.randomUUID());
   useEffect(() => {
     if (method !== 'BANK_TRANSFER') return;
     let active = true;
@@ -62,19 +64,29 @@ export function PaymentDialog({
           await payLocal(
             order,
             method === 'CASH'
-              ? { method, received: Number(received) }
-              : { method, confirmed: true },
+              ? { id: paymentId, method, received: Number(received) }
+              : { id: paymentId, method, confirmed: true },
           ),
         );
         return;
       }
-      const response = await fetch('/api/orders/' + order.id + '/pay', {
+      const response = await posFetch('/api/orders/' + order.id + '/pay', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(
           method === 'CASH'
-            ? { method, received: Number(received), version: order.version }
-            : { method, confirmed: true, version: order.version },
+            ? {
+                id: paymentId,
+                method,
+                received: Number(received),
+                version: order.version,
+              }
+            : {
+                id: paymentId,
+                method,
+                confirmed: true,
+                version: order.version,
+              },
         ),
       });
       const result = await response.json();

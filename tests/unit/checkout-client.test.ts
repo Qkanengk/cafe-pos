@@ -4,6 +4,7 @@ import { prepareLocal } from '../../lib/offline';
 import { checkoutWithFallback } from '../../lib/checkout-client';
 import { checkoutSchema } from '../../lib/sales-validation';
 import type { SaleOrder } from '../../lib/sales-types';
+import { RequestTimeoutError } from '../../lib/pos-fetch';
 const input = checkoutSchema.parse({
   id: '11111111-1111-4111-8111-111111111111',
   type: 'TAKEAWAY',
@@ -43,4 +44,9 @@ it('never forks a shared held server order on a server outage', async () => {
     checkoutWithFallback(input, { id: input.id, version: 2 } as SaleOrder),
   ).rejects.toThrow('cùng mã đơn');
   expect(prepareLocal).not.toHaveBeenCalled();
+});
+it('treats checkout timeout as an offline-eligible transport failure', async () => {
+  vi.mocked(fetch).mockRejectedValue(new RequestTimeoutError());
+  await checkoutWithFallback(input, null);
+  expect(prepareLocal).toHaveBeenCalledWith(input);
 });

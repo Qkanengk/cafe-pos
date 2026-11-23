@@ -288,6 +288,7 @@ export async function payOrder(
         : null;
     await tx.payment.create({
       data: {
+        ...(payment.id ? { id: payment.id } : {}),
         storeId: actor.storeId,
         orderId: id,
         method: payment.method,

@@ -8,6 +8,7 @@ import { formatVnd, shiftDifference } from '@/lib/money';
 import { openShiftSchema, closeShiftSchema } from '@/lib/sales-validation';
 import type { ShiftView } from '@/lib/sales-types';
 import { refreshSnapshot } from '@/lib/offline';
+import { posFetch } from '@/lib/pos-fetch';
 const time = (date: string) =>
   new Intl.DateTimeFormat('vi-VN', {
     timeZone: 'Asia/Ho_Chi_Minh',
@@ -45,7 +46,7 @@ export function Shifts({ initial }: { initial: ShiftView[] }) {
     }
     setBusy(true);
     try {
-      const response = await fetch('/api/shifts', {
+      const response = await posFetch('/api/shifts', {
         method: action === 'open' ? 'POST' : 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(parsed.data),
@@ -53,7 +54,7 @@ export function Shifts({ initial }: { initial: ShiftView[] }) {
       const result = await response.json();
       if (!response.ok) throw new Error(result.error);
       await refreshSnapshot();
-      const refresh = await fetch('/api/shifts');
+      const refresh = await posFetch('/api/shifts');
       if (!refresh.ok) throw new Error('Đã lưu, vui lòng tải lại trang.');
       setShifts(await refresh.json());
       if (action === 'close') setClosed(result);

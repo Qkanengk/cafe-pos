@@ -155,10 +155,16 @@ describe('server sales', () => {
     });
   });
   it('records bank confirmation without cash tender or change', async () => {
-    await payOrder(actor, id, { method: 'BANK_TRANSFER', confirmed: true });
+    const paymentId = '77777777-7777-4777-8777-777777777777';
+    await payOrder(actor, id, {
+      id: paymentId,
+      method: 'BANK_TRANSFER',
+      confirmed: true,
+    });
     expect(mocks.db.payment.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
         method: 'BANK_TRANSFER',
+        id: paymentId,
         received: null,
         change: null,
         confirmedBy: 'user',

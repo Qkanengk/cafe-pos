@@ -44,11 +44,13 @@ export const checkoutSchema = z
 export const paymentSchema = z.discriminatedUnion('method', [
   z.object({
     method: z.literal('CASH'),
+    id: z.uuid().optional(),
     received: cashValue,
     version: z.number().int().positive().optional(),
   }),
   z.object({
     method: z.literal('BANK_TRANSFER'),
+    id: z.uuid().optional(),
     confirmed: z.literal(true),
     version: z.number().int().positive().optional(),
   }),

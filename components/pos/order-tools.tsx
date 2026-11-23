@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import type { SaleOrder } from '@/lib/sales-types';
 import { formatVnd } from '@/lib/money';
+import { posFetch } from '@/lib/pos-fetch';
 type Table = { id: string; name: string; area: string };
 type Action = 'SPLIT' | 'MERGE' | 'MOVE' | 'VOID' | 'CANCEL';
 const labels = {
@@ -32,7 +33,9 @@ export function OrderTools({
   const [reason, setReason] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [splitId, setSplitId] = useState(() => crypto.randomUUID());
   async function open(value: Action) {
+    setSplitId(crypto.randomUUID());
     setAction(value);
     setTarget('');
     setQuantities({});
@@ -41,7 +44,7 @@ export function OrderTools({
     setError('');
     if (value === 'MERGE')
       try {
-        const r = await fetch('/api/orders');
+        const r = await posFetch('/api/orders');
         if (!r.ok) throw new Error('Không thể tải đơn');
         setSources(
           (await r.json()).filter(
@@ -62,7 +65,7 @@ export function OrderTools({
       version: order.version,
       ...(action === 'SPLIT'
         ? {
-            newId: crypto.randomUUID(),
+            newId: splitId,
             items: Object.entries(quantities)
               .filter(([, q]) => q > 0)
               .map(([itemId, quantity]) => ({ itemId, quantity })),
@@ -78,7 +81,7 @@ export function OrderTools({
               }),
     };
     try {
-      const r = await fetch('/api/orders/' + order.id, {
+      const r = await posFetch('/api/orders/' + order.id, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),

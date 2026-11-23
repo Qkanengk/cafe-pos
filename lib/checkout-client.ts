@@ -1,4 +1,5 @@
 import { prepareLocal } from './offline';
+import { posFetch } from './pos-fetch';
 import type { z } from 'zod';
 import type { checkoutSchema } from './sales-validation';
 import type { SaleOrder } from './sales-types';
@@ -8,7 +9,7 @@ export async function checkoutWithFallback(
 ) {
   let response: Response;
   try {
-    response = await fetch(
+    response = await posFetch(
       prepared ? '/api/orders/' + input.id : '/api/orders',
       {
         method: prepared ? 'PUT' : 'POST',
