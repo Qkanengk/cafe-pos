@@ -412,8 +412,14 @@ export function Terminal({
               <p role="alert">
                 Đơn không còn mở. Không thể ghép; giỏ chưa lưu vẫn ở màn hình
                 này để kiểm tra.{' '}
-                <a className="underline" href="/orders">
-                  Tìm hóa đơn
+                <a
+                  className="underline"
+                  href={'/pos?orderId=' + recovery.id}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Mở trạng thái / hóa đơn / đơn gộp ở cửa sổ mới (giữ giỏ tại
+                  đây)
                 </a>
               </p>
             )}
