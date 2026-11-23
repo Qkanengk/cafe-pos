@@ -1,13 +1,17 @@
 import Link from 'next/link';
 import { requireUser } from '@/lib/auth';
 import { navigation } from '@/lib/navigation';
+import { db } from '@/lib/db';
 export async function AppShell({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
+  const store = await db.store.findUniqueOrThrow({
+    where: { id: user.storeId },
+  });
   return (
     <div className="min-h-screen">
       <header className="flex flex-wrap items-center justify-between gap-4 border-b border-stone-200 bg-white px-6 py-5">
         <Link href="/pos" className="text-xl font-bold text-emerald-900">
-          ☕ Cafe Demo
+          ☕ {store.name}
         </Link>
         <div className="flex items-center gap-5">
           <span className="text-sm">
