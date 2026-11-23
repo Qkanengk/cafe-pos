@@ -102,6 +102,13 @@ beforeEach(() => {
   mocks.db.orderItem.create.mockResolvedValue({ id: 'item' });
 });
 describe('offline sync transaction', () => {
+  it('honors the signed sale-time price even after live catalog prices change', async () => {
+    mocks.db.productVariant.findMany.mockResolvedValue([{ id, price: 99000 }]);
+    await syncOrder(actor, entry());
+    expect(mocks.db.order.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ subtotal: 60000, total: 60000 }),
+    });
+  });
   it('upserts by order/payment UUID; replay writes exactly one paid order and payment', async () => {
     const input = entry(),
       first = await syncOrder(actor, input),

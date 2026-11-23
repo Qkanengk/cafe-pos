@@ -25,6 +25,8 @@ export type OfflineSnapshot = {
 export type LocalDraft = {
   id: string;
   userId: string;
+  catalogToken: string;
+  shiftId: string;
   input: z.infer<typeof checkoutSchema>;
   order: SaleOrder;
 };

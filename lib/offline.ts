@@ -121,6 +121,8 @@ export async function prepareLocal(
   await local.drafts.put({
     id: order.id,
     userId: snapshot.user.id,
+    catalogToken: snapshot.catalogToken,
+    shiftId: snapshot.shift.id,
     input,
     order,
   });
@@ -135,6 +137,10 @@ export async function payLocal(
   const draft = await local.drafts.get(order.id);
   if (!draft || draft.userId !== snapshot.user.id || !snapshot.shift)
     throw new Error('Không tìm thấy đơn/ca ngoại tuyến của nhân viên này');
+  if (!draft.catalogToken || !draft.shiftId)
+    throw new Error(
+      'Đơn cũ thiếu bảng giá đã lưu. Kết nối và kiểm tra lại đơn trước khi thanh toán.',
+    );
   const existing = await local.outbox.get(order.id);
   if (existing) return existing.order;
   const id = crypto.randomUUID(),
@@ -160,11 +166,11 @@ export async function payLocal(
   const entry: SyncEntry = {
     order: draft.input,
     userId: snapshot.user.id,
-    shiftId: snapshot.shift.id,
+    shiftId: draft.shiftId,
     paymentId: id,
     createdAt: order.createdAt,
     paidAt,
-    catalogToken: snapshot.catalogToken,
+    catalogToken: draft.catalogToken,
     payment,
   };
   await local.transaction('rw', local.outbox, local.drafts, async () => {
