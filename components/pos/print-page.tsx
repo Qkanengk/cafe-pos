@@ -5,6 +5,7 @@ import { db } from '@/lib/db';
 import { orderInclude } from '@/lib/sales';
 import { formatVnd, lineTotal, discountAmount } from '@/lib/money';
 import { PrintButton } from './print-button';
+import { printStatuses, ticketItems } from '@/lib/printing';
 export async function PrintPage({
   id,
   bar = false,
@@ -15,7 +16,7 @@ export async function PrintPage({
   const user = await requireUser();
   if (!id) notFound();
   const order = await db.order.findFirst({
-    where: { id, storeId: user.storeId, status: 'PAID' },
+    where: { id, storeId: user.storeId, status: { in: printStatuses(bar) } },
     include: orderInclude,
   });
   if (!order) notFound();
@@ -70,42 +71,55 @@ export async function PrintPage({
               : 'Tại bàn · ' + order.table?.name}
           </p>
           <p>Thu ngân: {order.creator.name}</p>
+          {bar && (
+            <p className="mt-2 font-bold">
+              BẢN HIỆN TẠI ·{' '}
+              {new Date().toLocaleString('vi-VN', {
+                timeZone: 'Asia/Ho_Chi_Minh',
+              })}
+              . Đối chiếu mã đơn, không pha trùng khi in lại. Món ghi ĐÃ HỦY:
+              ngừng pha.
+            </p>
+          )}
         </header>
         <div className="py-2">
-          {order.items
-            .filter((item) => item.status === 'ACTIVE')
-            .map((item) => (
-              <section
-                key={item.id}
-                className="receipt-line border-b border-dashed border-stone-300 py-3"
-              >
-                <div className="flex justify-between gap-2">
-                  <strong>
-                    {item.quantity} × {item.nameSnapshot}
-                  </strong>
-                  {!bar && (
-                    <span className="shrink-0">
-                      {formatVnd(
-                        lineTotal({
-                          price: item.priceSnapshot,
-                          quantity: item.quantity,
-                          toppings: item.toppings.map((t) => t.priceSnapshot),
-                        }),
-                      )}
-                    </span>
-                  )}
-                </div>
-                {item.toppings.map((topping) => (
-                  <p key={topping.id} className="mt-1">
-                    + {topping.nameSnapshot}
-                    {!bar ? ' (' + formatVnd(topping.priceSnapshot) + ')' : ''}
-                  </p>
-                ))}
-                {item.note && (
-                  <p className="mt-1 font-bold">Ghi chú: {item.note}</p>
+          {ticketItems(order.items, bar).map((item) => (
+            <section
+              key={item.id}
+              className="receipt-line border-b border-dashed border-stone-300 py-3"
+            >
+              {item.status === 'VOIDED' && (
+                <p className="font-bold">ĐÃ HỦY · {item.voidReason}</p>
+              )}
+              <div className="flex justify-between gap-2">
+                <strong
+                  className={item.status === 'VOIDED' ? 'line-through' : ''}
+                >
+                  {item.quantity} × {item.nameSnapshot}
+                </strong>
+                {!bar && (
+                  <span className="shrink-0">
+                    {formatVnd(
+                      lineTotal({
+                        price: item.priceSnapshot,
+                        quantity: item.quantity,
+                        toppings: item.toppings.map((t) => t.priceSnapshot),
+                      }),
+                    )}
+                  </span>
                 )}
-              </section>
-            ))}
+              </div>
+              {item.toppings.map((topping) => (
+                <p key={topping.id} className="mt-1">
+                  + {topping.nameSnapshot}
+                  {!bar ? ' (' + formatVnd(topping.priceSnapshot) + ')' : ''}
+                </p>
+              ))}
+              {item.note && (
+                <p className="mt-1 font-bold">Ghi chú: {item.note}</p>
+              )}
+            </section>
+          ))}
         </div>
         {order.note && <p className="mb-3 font-bold">{order.note}</p>}
         {!bar && (

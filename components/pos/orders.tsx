@@ -196,7 +196,10 @@ export function Orders({
                     window.location.reload();
                   }}
                 />
+                <PrintLinks id={order.id} barOnly />
               </>
+            ) : order.items.some((i) => i.status === 'VOIDED') ? (
+              <PrintLinks id={order.id} barOnly />
             ) : null}
           </article>
         ))}

@@ -444,14 +444,19 @@ export function Terminal({
               tách/gộp/chuyển/hủy.
             </p>
           ) : (
-            <OrderTools
-              order={prepared}
-              tables={tables}
-              onChange={(order) => {
-                load(order);
-                setNotice(orderCompletionMessage(order));
-              }}
-            />
+            <div className="space-y-3">
+              {!prepared.code.startsWith('TAM-') && (
+                <PrintLinks id={prepared.id} barOnly />
+              )}
+              <OrderTools
+                order={prepared}
+                tables={tables}
+                onChange={(order) => {
+                  load(order);
+                  setNotice(orderCompletionMessage(order));
+                }}
+              />
+            </div>
           )}
         </section>
       )}
