@@ -367,6 +367,7 @@ try {
       .getByTestId('order-' + order.id)
       .getByRole('link', { name: 'In hóa đơn', exact: true }),
   ).toBeVisible();
+  await page.getByRole('button', { name: 'Đóng', exact: true }).click();
   await page
     .getByRole('button', { name: 'Đã thanh toán', exact: true })
     .click();
@@ -386,6 +387,7 @@ try {
   });
   await page.goto('/orders');
   const cancelCard = page.getByTestId('order-' + cancelled.id);
+  await cancelCard.getByText(/Chi tiết đơn ·/).click();
   await cancelCard
     .getByRole('button', { name: 'Hủy đơn', exact: true })
     .click();

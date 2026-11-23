@@ -69,13 +69,10 @@ export function Shifts({ initial }: { initial: ShiftView[] }) {
     }
   }
   return (
-    <div className="space-y-6">
+    <div className="shifts-workspace space-y-4">
       <header>
-        <p className="text-xs font-bold uppercase tracking-[.2em] text-emerald-800">
-          Quản lý tiền tại quầy
-        </p>
-        <h1 className="mt-2 text-3xl font-bold">Ca làm việc</h1>
-        <p className="mt-2 text-stone-500">
+        <h1>Ca làm việc</h1>
+        <p className="mt-1 text-xs text-stone-500">
           Một ca chung cho các thiết bị. Mọi khoản thu đều gắn với ca đang mở.
         </p>
       </header>
@@ -106,7 +103,7 @@ export function Shifts({ initial }: { initial: ShiftView[] }) {
         </section>
       )}
       {active ? (
-        <section className="grid gap-6 rounded-2xl border border-stone-200 bg-white p-6 lg:grid-cols-2">
+        <section className="shift-reconciliation">
           <div>
             <h2 className="flex items-center gap-2 text-xl font-bold">
               <Clock3 size={24} aria-hidden="true" />
@@ -115,7 +112,7 @@ export function Shifts({ initial }: { initial: ShiftView[] }) {
             <p className="mt-2 text-sm text-stone-500">
               {active.opener.name} · {time(active.openedAt)}
             </p>
-            <dl className="mt-5 space-y-3">
+            <dl className="shift-summary">
               <div className="flex justify-between gap-3">
                 <dt>Tiền đầu ca</dt>
                 <dd>{formatVnd(active.openingCash)}</dd>
@@ -146,10 +143,7 @@ export function Shifts({ initial }: { initial: ShiftView[] }) {
               <ArrowRight size={20} aria-hidden="true" />
             </Link>
           </div>
-          <form
-            onSubmit={(e) => submit(e, 'close')}
-            className="rounded-xl bg-stone-50 p-5"
-          >
+          <form onSubmit={(e) => submit(e, 'close')} className="shift-close">
             <h3 className="mb-5 text-lg font-bold">Đối soát & đóng ca</h3>
             <label className="block space-y-2">
               <span>Tiền mặt thực đếm (₫)</span>
@@ -203,7 +197,7 @@ export function Shifts({ initial }: { initial: ShiftView[] }) {
       ) : (
         <form
           onSubmit={(e) => submit(e, 'open')}
-          className="max-w-xl rounded-2xl border border-stone-200 bg-white p-6"
+          className="max-w-md rounded-md border border-stone-200 bg-white p-5"
         >
           <h2 className="mb-5 flex items-center gap-2 text-xl font-bold">
             <Banknote size={24} aria-hidden="true" />
@@ -226,8 +220,8 @@ export function Shifts({ initial }: { initial: ShiftView[] }) {
         </form>
       )}
       <section>
-        <h2 className="mb-4 text-xl font-bold">Lịch sử ca</h2>
-        <div className="space-y-3">
+        <h2 className="mb-3 text-base font-semibold">Lịch sử ca</h2>
+        <div className="divide-y divide-stone-200 rounded-md border border-stone-200 bg-white">
           {!shifts.some((s) => s.closedAt) && (
             <p className="rounded-xl bg-white p-6 text-stone-500">
               Chưa có ca đã đóng.
@@ -238,7 +232,7 @@ export function Shifts({ initial }: { initial: ShiftView[] }) {
             .map((shift) => (
               <article
                 key={shift.id}
-                className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-stone-200 bg-white p-5"
+                className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"
               >
                 <div>
                   <h3 className="font-bold">

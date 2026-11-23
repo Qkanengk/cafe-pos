@@ -5,6 +5,7 @@ import { formatVnd, lineTotal } from '@/lib/money';
 import type { SaleOrder } from '@/lib/sales-types';
 import { PrintLinks } from './print-links';
 import { OrderTools } from './order-tools';
+import { Dialog } from '@/components/ui/dialog';
 export function Orders({
   initial,
   tables,
@@ -20,6 +21,7 @@ export function Orders({
 }) {
   const [orders, setOrders] = useState(initial);
   const [status, setStatus] = useState('ALL');
+  const [selected, setSelected] = useState<string | null>(null);
   const labels = {
     ALL: 'Tất cả',
     OPEN: 'Đang giữ',
@@ -30,18 +32,15 @@ export function Orders({
     (o) => status === 'ALL' || o.status === status,
   );
   return (
-    <div className="space-y-6">
+    <div className="orders-workspace space-y-4">
       <header>
-        <p className="text-xs font-bold uppercase tracking-widest text-emerald-800">
-          Theo dõi & in lại
-        </p>
-        <h1 className="mt-2 text-3xl font-bold">Đơn hàng</h1>
-        <p className="mt-2 text-stone-500">
+        <h1>Đơn hàng</h1>
+        <p className="mt-1 text-xs text-stone-500">
           Chọn ca hoặc ngày tạo đơn để tìm hóa đơn cũ và in lại.
         </p>
       </header>
       {history && (
-        <div className="flex flex-wrap gap-4">
+        <div className="history-filters flex flex-wrap gap-4">
           <form method="get" className="flex flex-wrap items-end gap-2">
             <label className="grid gap-2">
               Ca làm việc
@@ -82,18 +81,13 @@ export function Orders({
           </form>
         </div>
       )}
-      <div className="flex flex-wrap gap-2" aria-label="Lọc trạng thái">
+      <div className="underline-tabs" aria-label="Lọc trạng thái">
         {Object.entries(labels).map(([value, label]) => (
           <button
             key={value}
             aria-pressed={status === value}
             onClick={() => setStatus(value)}
-            className={
-              'min-h-12 rounded-xl px-4 font-semibold ' +
-              (status === value
-                ? 'bg-emerald-800 text-white'
-                : 'border border-stone-200 bg-white')
-            }
+            className={'min-h-10 px-2 text-sm font-medium'}
           >
             {label}
           </button>
@@ -104,105 +98,184 @@ export function Orders({
           Không có đơn trong trạng thái này hoặc chưa mở ca.
         </p>
       )}
-      <div className="space-y-4">
-        {filtered.map((order) => (
-          <article
-            key={order.id}
-            data-testid={'order-' + order.id}
-            className="space-y-4 rounded-2xl border border-stone-200 bg-white p-5"
-          >
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <h2 className="text-xl font-bold">{order.code}</h2>
-                <p className="mt-1 text-sm text-stone-500">
+      <div className="table-scroll">
+        <table className="data-table orders-table">
+          <thead>
+            <tr>
+              {[
+                'Mã đơn',
+                'Thời gian',
+                'Loại / Bàn',
+                'Nhân viên',
+                'Tổng cộng',
+                'Phương thức',
+                'Trạng thái',
+                '',
+              ].map((label, index) => (
+                <th key={index} scope="col">
+                  {label || <span className="sr-only">Thao tác</span>}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map((order) => (
+              <tr
+                key={order.id}
+                data-testid={'order-' + order.id}
+                tabIndex={0}
+                onClick={(event) => {
+                  if (!(event.target as HTMLElement).closest('a,button,dialog'))
+                    setSelected(order.id);
+                }}
+                onKeyDown={(event) => {
+                  if (
+                    event.target === event.currentTarget &&
+                    (event.key === 'Enter' || event.key === ' ')
+                  ) {
+                    event.preventDefault();
+                    setSelected(order.id);
+                  }
+                }}
+              >
+                <td className="font-semibold">{order.code}</td>
+                <td className="text-xs text-stone-500">
                   {new Date(order.createdAt).toLocaleString('vi-VN', {
                     timeZone: 'Asia/Ho_Chi_Minh',
-                  })}{' '}
-                  · {order.creator.name} ·{' '}
-                  {order.type === 'TAKEAWAY' ? 'Mang đi' : order.table?.name} ·
-                  v{order.version}
-                </p>
-              </div>
-              <div className="text-right">
-                <strong className="text-xl">{formatVnd(order.total)}</strong>
-                <p className="mt-1 text-sm text-emerald-800">
-                  {labels[order.status]}
-                </p>
-              </div>
-            </div>
-            <details>
-              <summary className="min-h-11 cursor-pointer font-semibold text-emerald-800">
-                Chi tiết đơn ·{' '}
-                {order.items.filter((i) => i.status === 'ACTIVE').length} món
-              </summary>
-              <div className="space-y-3 border-t border-stone-100 pt-3">
-                {order.items.map((i) => (
-                  <div
-                    key={i.id}
+                  })}
+                </td>
+                <td>
+                  {order.type === 'TAKEAWAY' ? 'Mang đi' : order.table?.name}
+                </td>
+                <td>{order.creator.name}</td>
+                <td className="text-right font-semibold whitespace-nowrap">
+                  {formatVnd(order.total)}
+                </td>
+                <td>
+                  {order.payments.length
+                    ? order.payments
+                        .map((p) =>
+                          p.method === 'CASH' ? 'Tiền mặt' : 'Chuyển khoản',
+                        )
+                        .join(', ')
+                    : '—'}
+                </td>
+                <td>
+                  <span
                     className={
-                      i.status === 'VOIDED'
-                        ? 'rounded-xl bg-red-50 p-3 text-red-800'
-                        : 'rounded-xl bg-stone-50 p-3'
+                      'order-state state-' + order.status.toLowerCase()
                     }
                   >
-                    <p className={i.status === 'VOIDED' ? 'line-through' : ''}>
-                      {i.quantity} × {i.nameSnapshot} ·{' '}
-                      {formatVnd(
-                        lineTotal({
-                          price: i.priceSnapshot,
-                          quantity: i.quantity,
-                          toppings: i.toppings.map((t) => t.priceSnapshot),
-                          status: i.status,
-                        }),
-                      )}
-                    </p>
-                    {i.toppings.length > 0 && (
-                      <p className="text-sm">
-                        {i.toppings.map((t) => t.nameSnapshot).join(', ')}
+                    {labels[order.status]}
+                  </span>
+                </td>
+                <td>
+                  <button
+                    type="button"
+                    className="min-h-10 text-xs font-medium whitespace-nowrap text-emerald-800"
+                    onClick={() => setSelected(order.id)}
+                  >
+                    Chi tiết đơn ·{' '}
+                    {order.items.filter((i) => i.status === 'ACTIVE').length}{' '}
+                    món
+                  </button>
+                  {selected === order.id && (
+                    <Dialog
+                      title={'Đơn ' + order.code}
+                      className="order-drawer"
+                      onClose={() => setSelected(null)}
+                    >
+                      <p className="mb-4 text-xs text-stone-500">
+                        {order.creator.name} ·{' '}
+                        {order.type === 'TAKEAWAY'
+                          ? 'Mang đi'
+                          : order.table?.name}{' '}
+                        · v{order.version}
                       </p>
-                    )}
-                    {i.note && <p className="text-sm">Ghi chú: {i.note}</p>}
-                    {i.status === 'VOIDED' && (
-                      <p className="text-sm font-semibold">
-                        Đã hủy · {i.voidReason}
-                      </p>
-                    )}
-                  </div>
-                ))}
-                <p className="text-sm">
-                  Tạm tính {formatVnd(order.subtotal)} · Tổng cộng{' '}
-                  {formatVnd(order.total)}
-                </p>
-                {order.note && <p>{order.note}</p>}
-              </div>
-            </details>
-            {order.status === 'PAID' ? (
-              <PrintLinks id={order.id} />
-            ) : order.status === 'OPEN' ? (
-              <>
-                <Link
-                  className="inline-flex min-h-12 items-center rounded-xl bg-emerald-800 px-5 font-semibold text-white"
-                  href={'/pos?orderId=' + order.id}
-                >
-                  Mở / tiếp tục đơn
-                </Link>
-                <OrderTools
-                  order={order}
-                  tables={tables}
-                  onChange={(updated) => {
-                    setOrders((current) =>
-                      current.map((o) => (o.id === updated.id ? updated : o)),
-                    );
-                    window.location.reload();
-                  }}
-                />
-                <PrintLinks id={order.id} barOnly />
-              </>
-            ) : order.items.some((i) => i.status === 'VOIDED') ? (
-              <PrintLinks id={order.id} barOnly />
-            ) : null}
-          </article>
-        ))}
+                      <div className="space-y-3 border-t border-stone-200 pt-3">
+                        {order.items.map((i) => (
+                          <div
+                            key={i.id}
+                            className={
+                              i.status === 'VOIDED'
+                                ? 'rounded-xl bg-red-50 p-3 text-red-800'
+                                : 'border-b border-stone-200 py-3'
+                            }
+                          >
+                            <p
+                              className={
+                                i.status === 'VOIDED' ? 'line-through' : ''
+                              }
+                            >
+                              {i.quantity} × {i.nameSnapshot} ·{' '}
+                              {formatVnd(
+                                lineTotal({
+                                  price: i.priceSnapshot,
+                                  quantity: i.quantity,
+                                  toppings: i.toppings.map(
+                                    (t) => t.priceSnapshot,
+                                  ),
+                                  status: i.status,
+                                }),
+                              )}
+                            </p>
+                            {i.toppings.length > 0 && (
+                              <p className="text-sm">
+                                {i.toppings
+                                  .map((t) => t.nameSnapshot)
+                                  .join(', ')}
+                              </p>
+                            )}
+                            {i.note && (
+                              <p className="text-sm">Ghi chú: {i.note}</p>
+                            )}
+                            {i.status === 'VOIDED' && (
+                              <p className="text-sm font-semibold">
+                                Đã hủy · {i.voidReason}
+                              </p>
+                            )}
+                          </div>
+                        ))}
+                        <p className="text-sm">
+                          Tạm tính {formatVnd(order.subtotal)} · Tổng cộng{' '}
+                          {formatVnd(order.total)}
+                        </p>
+                        {order.note && <p>{order.note}</p>}
+                      </div>
+                      {order.status === 'PAID' ? (
+                        <PrintLinks id={order.id} />
+                      ) : order.status === 'OPEN' ? (
+                        <>
+                          <Link
+                            className="inline-flex min-h-12 items-center rounded-xl bg-emerald-800 px-5 font-semibold text-white"
+                            href={'/pos?orderId=' + order.id}
+                          >
+                            Mở / tiếp tục đơn
+                          </Link>
+                          <OrderTools
+                            order={order}
+                            tables={tables}
+                            onChange={(updated) => {
+                              setOrders((current) =>
+                                current.map((o) =>
+                                  o.id === updated.id ? updated : o,
+                                ),
+                              );
+                              window.location.reload();
+                            }}
+                          />
+                          <PrintLinks id={order.id} barOnly />
+                        </>
+                      ) : order.items.some((i) => i.status === 'VOIDED') ? (
+                        <PrintLinks id={order.id} barOnly />
+                      ) : null}
+                    </Dialog>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );

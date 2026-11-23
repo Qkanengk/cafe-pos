@@ -6,7 +6,7 @@ export function loadTables(storeId: string) {
     include: {
       orders: {
         where: { status: 'OPEN' },
-        select: { id: true, code: true, total: true },
+        select: { id: true, code: true, total: true, createdAt: true },
         orderBy: { createdAt: 'asc' },
       },
     },

@@ -42,7 +42,8 @@ export async function GET(request: NextRequest) {
         area: true,
         orders: {
           where: { status: 'OPEN' },
-          select: { id: true, code: true, total: true },
+          select: { id: true, code: true, total: true, createdAt: true },
+          orderBy: { createdAt: 'asc' },
         },
       },
       orderBy: { name: 'asc' },

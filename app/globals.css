@@ -190,6 +190,231 @@ body {
   scrollbar-gutter: auto;
   overflow: hidden;
 }
+.underline-tabs {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  overflow-x: auto;
+  border-bottom: 1px solid #deded8;
+  scrollbar-width: none;
+}
+.underline-tabs > button {
+  min-height: 42px;
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+  font-size: 13px;
+  color: #72766e;
+  font-weight: 500;
+}
+.underline-tabs > button[aria-pressed='true'],
+.underline-tabs > button[aria-selected='true'] {
+  border-color: #1f5f46;
+  color: #1f5f46;
+  font-weight: 600;
+}
+.floor-workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  height: 100%;
+  min-height: 0;
+}
+.floor-areas {
+  overflow-y: auto;
+  min-height: 0;
+  padding-bottom: 12px;
+}
+.floor-areas > section + section {
+  margin-top: 24px;
+}
+.floor-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+}
+.table-tile {
+  aspect-ratio: 1;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #deded8;
+  border-radius: 6px;
+  background: white;
+  overflow: hidden;
+}
+.table-tile[data-occupied='true'] {
+  border-color: #c0cec2;
+  background: #eaf0e8;
+  border-top: 3px solid #1f5f46;
+}
+.table-tile-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  min-height: 0;
+  padding: 16px;
+}
+.table-tile:hover {
+  border-color: #1f5f46;
+}
+.table-extra-orders {
+  max-height: 65px;
+  overflow-y: auto;
+  border-top: 1px solid #c0cec2;
+  padding: 4px 12px;
+}
+.table-scroll {
+  overflow: auto;
+  max-width: 100%;
+  border: 1px solid #deded8;
+  border-radius: 6px;
+  background: white;
+}
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 13px;
+}
+.data-table th {
+  height: 40px;
+  padding: 8px 12px;
+  border-bottom: 1px solid #deded8;
+  background: #f8f8f5;
+  color: #777b72;
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.data-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid #e7e8e2;
+  vertical-align: middle;
+}
+.data-table tbody > tr:last-child > td {
+  border-bottom: 0;
+}
+.data-table tbody > tr:hover {
+  background: #fafaf7;
+}
+.orders-table {
+  min-width: 1020px;
+}
+.orders-table tbody > tr {
+  cursor: pointer;
+}
+.history-filters {
+  font-size: 12px;
+}
+.history-filters label {
+  gap: 5px;
+}
+.history-filters :is(input, select, button) {
+  min-height: 38px;
+  border-radius: 6px;
+  padding: 7px 10px;
+  font-size: 12px;
+}
+.order-state {
+  display: inline-flex;
+  white-space: nowrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #73766f;
+}
+.order-state:before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.state-open {
+  color: #9a620e;
+}
+.state-paid {
+  color: #1f5f46;
+}
+.state-cancelled {
+  color: #b34e46;
+}
+.order-drawer {
+  margin: 0 0 0 auto;
+  width: min(520px, 100%);
+  max-width: none;
+  height: 100dvh;
+  max-height: 100dvh;
+  border-radius: 0;
+  border-left: 1px solid #deded8;
+}
+.order-drawer > header {
+  padding-bottom: 12px;
+  border-bottom: 1px solid #deded8;
+}
+.order-drawer > header h2 {
+  font-size: 18px;
+}
+.order-drawer > .inline-flex {
+  margin-top: 16px;
+}
+.shift-reconciliation {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  border: 1px solid #deded8;
+  border-radius: 6px;
+  background: white;
+  padding: 20px;
+}
+.shift-summary {
+  margin-top: 16px;
+  font-size: 13px;
+}
+.shift-summary > div {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid #e7e8e2;
+}
+.shift-summary dd {
+  font-weight: 600;
+}
+.shift-summary > div:last-child {
+  border: 0;
+  padding-top: 8px;
+  font-size: 16px;
+}
+.shift-close {
+  border-left: 1px solid #deded8;
+  padding-left: 24px;
+}
+.shift-close > h3 {
+  margin-bottom: 16px;
+  font-size: 16px;
+  font-weight: 600;
+}
+@media (max-width: 700px) {
+  .floor-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .floor-workspace {
+    height: auto;
+    min-height: 100%;
+  }
+  .shift-reconciliation {
+    grid-template-columns: 1fr;
+    padding: 16px;
+    gap: 20px;
+  }
+  .shift-close {
+    padding: 16px 0 0;
+    border: 0;
+    border-top: 1px solid #deded8;
+  }
+}
 .dialog-panel {
   border: 1px solid #d7d9d2;
   border-radius: 8px;

@@ -1,6 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
-import { Armchair } from 'lucide-react';
+import { useState, useEffect, useSyncExternalStore } from 'react';
 import { posFetch } from '@/lib/pos-fetch';
 import { serialPoll } from '@/lib/live-state';
 import { formatVnd, sumMoney } from '@/lib/money';
@@ -8,8 +7,9 @@ type Table = {
   id: string;
   name: string;
   area: string;
-  orders: { id: string; code: string; total: number }[];
+  orders: { id: string; code: string; total: number; createdAt?: string | Date }[];
 };
+const subscribeToHydration = () => () => {};
 export function Tables({
   tables: initial,
   offline = false,
@@ -17,8 +17,14 @@ export function Tables({
   tables: Table[];
   offline?: boolean;
 }) {
+  const hydrated = useSyncExternalStore(
+    subscribeToHydration,
+    () => true,
+    () => false,
+  );
   const [tables, setTables] = useState(initial),
     [error, setError] = useState('');
+  const [selectedArea, setSelectedArea] = useState('');
   useEffect(() => {
     if (offline) return;
     let active = true;
@@ -49,74 +55,107 @@ export function Tables({
     };
   }, [offline]);
   return (
-    <div className="space-y-7">
+    <div className="floor-workspace">
       <header>
-        <p className="text-xs font-bold uppercase tracking-widest text-emerald-800">
-          Không gian quán
-        </p>
-        <h1 className="mt-2 text-3xl font-bold">Sơ đồ bàn</h1>
-        <p className="mt-2 text-stone-500">
-          Chạm bàn trống để nhận đơn, bàn đang phục vụ để tiếp tục.
+        <h1>Sơ đồ bàn</h1>
+        <p className="mt-1 text-xs text-stone-500">
+          {tables.filter((t) => t.orders.length).length} đang phục vụ ·{' '}
+          {tables.filter((t) => !t.orders.length).length} trống
         </p>
       </header>
-      <p className="text-sm text-stone-500">
+      <p className="text-xs text-stone-500">
         {offline
           ? 'Sơ đồ đã lưu, chưa phản ánh thay đổi trên máy chủ.'
           : 'Tự kiểm tra bàn mỗi 5 giây; thay đổi từ thiết bị khác sẽ hiện tại đây.'}
       </p>
       {error && <p role="alert">{error}</p>}
-      {[...new Set(tables.map((t) => t.area))].map((area) => (
-        <section key={area}>
-          <h2 className="mb-4 text-xl font-bold">{area}</h2>
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
-            {tables
-              .filter((t) => t.area === area)
-              .map((table) => (
-                <article
-                  key={table.id}
-                  data-testid={'table-' + table.name}
-                  className={
-                    'rounded-2xl border p-4 ' +
-                    (table.orders.length
-                      ? 'border-emerald-300 bg-emerald-50'
-                      : 'border-stone-200 bg-white')
-                  }
-                >
-                  <a
-                    href={
-                      table.orders.length
-                        ? '/pos?orderId=' + table.orders[0].id
-                        : '/pos?tableId=' + table.id
-                    }
-                    className="block space-y-3"
-                  >
-                    <Armchair size={32} aria-hidden="true" />
-                    <h3 className="text-xl font-bold">{table.name}</h3>
-                    <p className="text-sm">
-                      {table.orders.length ? 'Đang phục vụ' : 'Trống'}
-                    </p>
-                    <strong className="block text-xl">
-                      {formatVnd(sumMoney(table.orders.map((o) => o.total)))}
-                    </strong>
-                  </a>
-                  {table.orders.length > 1 && (
-                    <div className="mt-3 space-y-2 border-t border-emerald-200 pt-3">
-                      {table.orders.map((o) => (
-                        <a
-                          key={o.id}
-                          className="block min-h-11 text-sm font-semibold underline"
-                          href={'/pos?orderId=' + o.id}
-                        >
-                          {o.code} · {formatVnd(o.total)}
-                        </a>
-                      ))}
-                    </div>
-                  )}
-                </article>
-              ))}
-          </div>
-        </section>
-      ))}
+      <nav className="underline-tabs" aria-label="Khu vực bàn">
+        {['', ...new Set(tables.map((t) => t.area))].map((area) => (
+          <button
+            type="button"
+            key={area}
+            aria-pressed={selectedArea === area}
+            onClick={() => setSelectedArea(area)}
+          >
+            {area || 'Tất cả khu vực'}
+          </button>
+        ))}
+      </nav>
+      <div className="floor-areas">
+        {[...new Set(tables.map((t) => t.area))]
+          .filter((area) => !selectedArea || area === selectedArea)
+          .map((area) => (
+            <section key={area}>
+              <h2 className="mb-3 text-sm font-semibold text-stone-600">
+                {area}
+              </h2>
+              <div className="floor-grid">
+                {tables
+                  .filter((t) => t.area === area)
+                  .map((table) => (
+                    <article
+                      key={table.id}
+                      data-testid={'table-' + table.name}
+                      className="table-tile"
+                      data-occupied={!!table.orders.length}
+                    >
+                      <a
+                        href={
+                          table.orders.length
+                            ? '/pos?orderId=' + table.orders[0].id
+                            : '/pos?tableId=' + table.id
+                        }
+                        className="table-tile-body"
+                      >
+                        <h3 className="text-xl font-semibold">{table.name}</h3>
+                        <p className="text-xs text-stone-500">
+                          {table.orders.length ? (
+                            <>
+                              Đang phục vụ
+                              {hydrated &&
+                                table.orders[0].createdAt &&
+                                ' · ' +
+                                  Math.max(
+                                    0,
+                                    Math.floor(
+                                      (Date.now() -
+                                        new Date(
+                                          table.orders[0].createdAt,
+                                        ).getTime()) /
+                                        60000,
+                                    ),
+                                  ) +
+                                  ' phút'}
+                            </>
+                          ) : (
+                            'Trống'
+                          )}
+                        </p>
+                        <strong className="mt-auto block text-lg font-semibold">
+                          {formatVnd(
+                            sumMoney(table.orders.map((o) => o.total)),
+                          )}
+                        </strong>
+                      </a>
+                      {table.orders.length > 1 && (
+                        <div className="table-extra-orders">
+                          {table.orders.map((o) => (
+                            <a
+                              key={o.id}
+                              className="block min-h-11 text-sm font-semibold underline"
+                              href={'/pos?orderId=' + o.id}
+                            >
+                              {o.code} · {formatVnd(o.total)}
+                            </a>
+                          ))}
+                        </div>
+                      )}
+                    </article>
+                  ))}
+              </div>
+            </section>
+          ))}
+      </div>
       {!tables.length && <p>Chưa có bàn.</p>}
     </div>
   );
