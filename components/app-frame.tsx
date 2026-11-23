@@ -1,5 +1,6 @@
 'use client';
 import { usePathname } from 'next/navigation';
+import { useSyncExternalStore } from 'react';
 import {
   Store,
   ShoppingBasket,
@@ -26,6 +27,7 @@ const icons = [
   ChartNoAxesCombined,
   NotebookText,
 ];
+const subscribeToHydration = () => () => {};
 export function AppFrame({
   children,
   storeName,
@@ -35,7 +37,13 @@ export function AppFrame({
   storeName: string;
   user: { name: string; role: string };
 }) {
-  const path = usePathname();
+  const pathname = usePathname();
+  const hydrated = useSyncExternalStore(
+    subscribeToHydration,
+    () => true,
+    () => false,
+  );
+  const path = hydrated ? pathname : '';
   return (
     <div
       className="app-frame"
