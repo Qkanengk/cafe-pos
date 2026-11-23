@@ -305,7 +305,9 @@ export async function adminRequest(request: NextRequest, resource: string) {
         return NextResponse.json(
           {
             error:
-              'Bản ghi đã có dữ liệu liên quan. Hãy tắt hoặc ngừng hoạt động thay vì xóa.',
+              resource === 'categories'
+                ? 'Danh mục đang có món sử dụng. Bỏ chọn “Hiển thị danh mục trên quầy” để ẩn thay vì xóa.'
+                : 'Bản ghi đã có dữ liệu liên quan. Hãy tắt hoặc ngừng hoạt động thay vì xóa.',
           },
           { status: 409 },
         );
