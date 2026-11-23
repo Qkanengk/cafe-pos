@@ -1,0 +1,120 @@
+import type { SaleOrder, MenuVariant } from './sales-types';
+import { z } from 'zod';
+export function restoreLineIdentities(lines: WorkingLine[]) {
+  return lines.map((line) =>
+    line.snapshot || z.uuid().safeParse(line.id).success
+      ? line
+      : { ...line, id: crypto.randomUUID() },
+  );
+}
+export function orderCompletionMessage(
+  order: Pick<SaleOrder, 'status' | 'total' | 'tableId'>,
+) {
+  if (order.status === 'CANCELLED')
+    return (
+      'Đơn đã hủy, tổng tiền còn 0 ₫.' +
+      (order.tableId ? ' Bàn đã được giải phóng khỏi đơn này.' : '')
+    );
+  if (order.status === 'PAID')
+    return 'Đơn đã được thanh toán trước đó. Không nhận thêm tiền; kiểm tra hóa đơn.';
+  return 'Đã cập nhật đơn';
+}
+export type WorkingLine = {
+  id: string;
+  productId: string;
+  variantId: string;
+  quantity: number;
+  toppingIds: string[];
+  note: string;
+  snapshot?: SaleOrder['items'][number];
+};
+export function orderLineVariant(
+  line: WorkingLine,
+  variants: MenuVariant[],
+): MenuVariant {
+  const current = variants.find((variant) => variant.id === line.variantId);
+  if (current) return current;
+  if (line.snapshot)
+    return {
+      id: line.variantId,
+      name: line.snapshot.nameSnapshot.split(' · ').at(-1) ?? 'Cỡ đã lưu',
+      price: line.snapshot.priceSnapshot,
+    };
+  throw new Error('Không tìm thấy size của món. Hãy kiểm tra lại thực đơn.');
+}
+export function orderLines(order?: SaleOrder): WorkingLine[] {
+  return (
+    order?.items
+      .filter((i) => i.status === 'ACTIVE')
+      .map((i) => ({
+        id: i.id,
+        productId: i.productId,
+        variantId: i.variantId,
+        quantity: i.quantity,
+        toppingIds: i.toppings.map((t) => t.toppingId),
+        note: i.note,
+        snapshot: i,
+      })) ?? []
+  );
+}
+export function reapplyPending(
+  base: SaleOrder,
+  fresh: SaleOrder,
+  working: WorkingLine[],
+) {
+  if (fresh.id !== base.id || fresh.status !== 'OPEN')
+    throw new Error('Đơn không còn mở. Món chưa lưu vẫn được giữ để kiểm tra.');
+  const merged = orderLines(fresh);
+  for (const line of working) {
+    const old = base.items.find((i) => i.id === line.snapshot?.id);
+    if (!old) {
+      const saved = fresh.items.find((item) => item.id === line.id);
+      if (saved) {
+        const current = merged.find((item) => item.id === line.id);
+        if (current) {
+          if (
+            line.quantity < saved.quantity ||
+            line.variantId !== saved.variantId ||
+            JSON.stringify([...line.toppingIds].sort()) !==
+              JSON.stringify(saved.toppings.map((t) => t.toppingId).sort())
+          )
+            throw new Error(
+              'Dòng món đã được lưu. Giảm số lượng hoặc đổi size/topping cần kiểm tra/hủy món đã lưu trước; giỏ đang sửa vẫn được giữ.',
+            );
+          current.quantity = Math.max(current.quantity, line.quantity);
+          current.note = line.note;
+        } else if (line.quantity > saved.quantity)
+          merged.push({
+            ...line,
+            id: crypto.randomUUID(),
+            quantity: line.quantity - saved.quantity,
+            snapshot: undefined,
+          });
+        continue;
+      }
+      merged.push({ ...line, snapshot: undefined });
+      continue;
+    }
+    const delta = Math.max(0, line.quantity - old.quantity);
+    const current = merged.find((i) => i.id === old.id);
+    if (current) {
+      if (delta > 0)
+        current.quantity =
+          current.quantity < old.quantity
+            ? current.quantity + delta
+            : Math.max(current.quantity, line.quantity);
+      if (line.note !== old.note) current.note = line.note;
+    } else if (delta > 0)
+      merged.push({
+        ...line,
+        id: crypto.randomUUID(),
+        quantity: delta,
+        snapshot: undefined,
+      });
+  }
+  if (merged.some((line) => line.quantity > 99))
+    throw new Error(
+      'Số lượng sau ghép vượt 99. Món chưa lưu vẫn được giữ; hãy kiểm tra lại.',
+    );
+  return merged;
+}
