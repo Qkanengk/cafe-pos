@@ -19,14 +19,17 @@ it('falls back with the same UUID when Wi-Fi is up but transport or server fails
     id: input.id,
     code: 'TAM-local',
   } as SaleOrder);
-  vi.mocked(fetch)
-    .mockRejectedValueOnce(new TypeError('Failed to fetch'))
-    .mockResolvedValueOnce(new Response('down', { status: 503 }));
-  for (let i = 0; i < 2; i++)
+  for (let i = 0; i < 2; i++) {
+    vi.mocked(fetch).mockRejectedValue(new TypeError('Failed to fetch'));
+    if (i === 1)
+      vi.mocked(fetch).mockResolvedValueOnce(
+        new Response('down', { status: 503 }),
+      );
     expect(await checkoutWithFallback(input, null)).toMatchObject({
       id: input.id,
       code: 'TAM-local',
     });
+  }
   expect(prepareLocal).toHaveBeenCalledWith(input);
 });
 it('does not hide validation, auth, or version errors behind a local sale', async () => {
@@ -49,4 +52,45 @@ it('treats checkout timeout as an offline-eligible transport failure', async () 
   vi.mocked(fetch).mockRejectedValue(new RequestTimeoutError());
   await checkoutWithFallback(input, null);
   expect(prepareLocal).toHaveBeenCalledWith(input);
+});
+const committed = {
+  id: input.id,
+  code: 'CF001',
+  status: 'OPEN',
+  type: 'TAKEAWAY',
+  tableId: null,
+  note: '',
+  discountType: null,
+  discountValue: 0,
+  items: [
+    {
+      variantId: input.lines[0].variantId,
+      quantity: 1,
+      note: '',
+      status: 'ACTIVE',
+      toppings: [],
+    },
+  ],
+} as SaleOrder;
+it('recovers a matching committed order before creating a local fallback', async () => {
+  vi.mocked(fetch)
+    .mockRejectedValueOnce(new RequestTimeoutError())
+    .mockResolvedValueOnce(Response.json(committed));
+  expect(await checkoutWithFallback(input, null)).toEqual(committed);
+  expect(prepareLocal).not.toHaveBeenCalled();
+});
+it('surfaces a reachable server conflict or expired session instead of forking it', async () => {
+  vi.mocked(fetch)
+    .mockRejectedValueOnce(new RequestTimeoutError())
+    .mockResolvedValueOnce(Response.json({ ...committed, items: [] }));
+  await expect(checkoutWithFallback(input, null)).rejects.toThrow(
+    'nội dung khác',
+  );
+  vi.mocked(fetch)
+    .mockRejectedValueOnce(new RequestTimeoutError())
+    .mockResolvedValueOnce(Response.json({}, { status: 401 }));
+  await expect(checkoutWithFallback(input, null)).rejects.toThrow(
+    'đăng nhập lại',
+  );
+  expect(prepareLocal).not.toHaveBeenCalled();
 });

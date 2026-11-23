@@ -3,7 +3,9 @@ import { db } from './db';
 import { HttpError } from './api';
 import { verifyCatalog } from './offline-catalog';
 import { cartTotal, changeDue } from './money';
-import { lockStore, nextOrderCode, vietnamDay } from './sales';
+import { lockStore, nextOrderCode, orderInclude } from './sales';
+import { orderMatchesCheckout } from './order-match';
+import type { SaleOrder } from './sales-types';
 import type { SyncEntry } from './sync-validation';
 import { auditDiscount } from './discount-audit';
 export async function syncOrder(
@@ -26,17 +28,15 @@ export async function syncOrder(
       throw new HttpError('Nhân viên đã ngừng hoạt động', 401);
     const existing = await tx.order.findUnique({
       where: { id: entry.order.id },
-      include: { payments: true },
+      include: orderInclude,
     });
     const unconfirmed =
       existing?.status === 'OPEN' &&
-      existing.version === 1 &&
       existing.storeId === actor.storeId &&
       existing.createdBy === actor.id &&
       existing.shiftId === entry.shiftId &&
       existing.payments.length === 0 &&
-      existing.requestHash ===
-        createHash('sha256').update(JSON.stringify(entry.order)).digest('hex');
+      orderMatchesCheckout(existing as unknown as SaleOrder, entry.order);
     if (existing && !unconfirmed) {
       if (
         existing.storeId !== actor.storeId ||
@@ -45,7 +45,7 @@ export async function syncOrder(
         existing.payments[0]?.id !== entry.paymentId
       )
         throw new HttpError(
-          'UUID đã dùng với nội dung khác. Đơn được giữ trên thiết bị để kiểm tra.',
+          'Đơn máy chủ đã được sửa/thanh toán hoặc không khớp đơn trên thiết bị. Không thu thêm tiền; mở Đơn hàng để đối chiếu. Đơn vẫn được giữ trên thiết bị.',
           409,
         );
       return { id: existing.id, code: existing.code };
@@ -131,14 +131,21 @@ export async function syncOrder(
       entry.payment.method === 'CASH'
         ? changeDue(totals.total, entry.payment.received)
         : null;
-    const numbering =
-      unconfirmed && existing.businessDate === vietnamDay(paidAt)
-        ? {
-            businessDate: existing.businessDate,
-            dailyNumber: existing.dailyNumber,
-            code: existing.code,
-          }
-        : await nextOrderCode(tx, actor.storeId, paidAt);
+    if (
+      unconfirmed &&
+      (existing.total !== totals.total || existing.subtotal !== totals.subtotal)
+    )
+      throw new HttpError(
+        'Giá trị đơn máy chủ khác số tiền đã thu trên thiết bị. Giữ đơn để chủ quán đối chiếu; không tự ghi đè.',
+        409,
+      );
+    const numbering = unconfirmed
+      ? {
+          businessDate: existing.businessDate,
+          dailyNumber: existing.dailyNumber,
+          code: existing.code,
+        }
+      : await nextOrderCode(tx, actor.storeId, paidAt);
     const data = {
       id: entry.order.id,
       storeId: actor.storeId,
@@ -158,22 +165,22 @@ export async function syncOrder(
       ...numbering,
     };
     if (unconfirmed) {
-      await tx.orderItemTopping.deleteMany({
-        where: {
-          orderItem: { orderId: entry.order.id, storeId: actor.storeId },
-        },
-      });
-      await tx.orderItem.deleteMany({
-        where: { orderId: entry.order.id, storeId: actor.storeId },
-      });
       await tx.order.update({
         where: { id: entry.order.id },
-        data: { ...data, version: { increment: 1 } },
+        data: {
+          status: 'PAID',
+          paidAt,
+          requestHash: hash,
+          version: { increment: 1 },
+        },
       });
     } else await tx.order.create({ data });
-    for (const { product, variant, selected, line } of lines) {
+    for (const { product, variant, selected, line } of unconfirmed
+      ? []
+      : lines) {
       const item = await tx.orderItem.create({
         data: {
+          id: line.clientLineId,
           storeId: actor.storeId,
           orderId: entry.order.id,
           productId: product.id,

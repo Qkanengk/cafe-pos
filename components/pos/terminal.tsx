@@ -499,7 +499,10 @@ export function Terminal({
       }
       const order = await checkoutWithFallback(input.data, prepared);
       if (order.status === 'PAID') {
-        complete(order);
+        setRecovery(order);
+        setError(
+          'Đơn đã được thanh toán trước đó. Không nhận thêm tiền; kiểm tra hóa đơn.',
+        );
         return;
       }
       load(order);

@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => {
     deleteMany: vi.fn(),
   });
   return {
+    orders: new Map<string, Record<string, unknown>>(),
     db: {
       order: model(),
       payment: model(),
@@ -73,7 +74,8 @@ function entry() {
 beforeEach(() => {
   vi.resetAllMocks();
   vi.stubEnv('AUTH_SECRET', 'unit-test-secret-at-least-32-characters');
-  const orders = new Map<string, Record<string, unknown>>(),
+  mocks.orders.clear();
+  const orders = mocks.orders,
     payments = new Map<string, Record<string, unknown>>();
   mocks.db.$transaction.mockImplementation(async (fn) => fn(mocks.db));
   mocks.db.user.findFirst.mockResolvedValue(actor);
@@ -138,9 +140,9 @@ describe('offline sync transaction', () => {
       id: payload.order.id,
     });
   });
-  it('promotes only an untouched same-UUID checkout after its response was lost', async () => {
+  it('pays a matching committed order without replacing its lines after the response was lost', async () => {
     const input = entry();
-    mocks.db.order.findUnique.mockResolvedValueOnce({
+    mocks.orders.set(id, {
       id,
       storeId,
       createdBy: userId,
@@ -151,12 +153,34 @@ describe('offline sync transaction', () => {
       requestHash: createHash('sha256')
         .update(JSON.stringify(input.order))
         .digest('hex'),
+      type: 'TAKEAWAY',
+      tableId: null,
+      note: '',
+      discountType: null,
+      discountValue: 0,
+      total: 60000,
+      subtotal: 60000,
+      businessDate: vietnamDay(new Date(input.paidAt)),
+      dailyNumber: 1,
+      code: 'CF001',
+      items: [
+        {
+          id: 'saved-item',
+          variantId: id,
+          quantity: 2,
+          note: 'ít đá',
+          status: 'ACTIVE',
+          toppings: [{ toppingId: id }],
+        },
+      ],
     });
     await syncOrder(actor, input);
     await syncOrder(actor, input);
     expect(mocks.db.order.create).not.toHaveBeenCalled();
     expect(mocks.db.order.update).toHaveBeenCalledTimes(1);
     expect(mocks.db.payment.create).toHaveBeenCalledTimes(1);
+    expect(mocks.db.orderItem.create).not.toHaveBeenCalled();
+    expect(mocks.db.orderItem.deleteMany).not.toHaveBeenCalled();
   });
   it('honors the signed sale-time price even after live catalog prices change', async () => {
     mocks.db.productVariant.findMany.mockResolvedValue([{ id, price: 99000 }]);
