@@ -91,6 +91,16 @@ try {
   await page.getByRole('button', { name: /Thêm món/ }).click();
   await page.getByLabel('Tên món', { exact: true }).fill('Cà phê muối');
   await page.getByLabel('Danh mục', { exact: true }).selectOption(category.id);
+  const editingPrice = page.getByLabel('Giá size S (₫)', { exact: true });
+  await editingPrice.fill('50000');
+  await editingPrice.blur();
+  assert.equal(await editingPrice.inputValue(), '50.000');
+  await editingPrice.focus();
+  await editingPrice.press('End');
+  await editingPrice.press('Backspace');
+  assert.equal(await editingPrice.getAttribute('aria-invalid'), 'false');
+  await editingPrice.blur();
+  assert.equal(await editingPrice.inputValue(), '5.000');
   for (const [size, price] of [
     ['S', '28000'],
     ['M', '33000'],
