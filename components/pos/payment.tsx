@@ -17,6 +17,7 @@ import { payLocal } from '@/lib/offline';
 import { posFetch } from '@/lib/pos-fetch';
 import { PaymentConflictError } from '@/lib/payment-conflict';
 import { PrintLinks } from './print-links';
+import { OrderTools } from './order-tools';
 import type { SaleOrder, BankDetails } from '@/lib/sales-types';
 export function ShareCheckout({
   order,
@@ -32,6 +33,13 @@ export function ShareCheckout({
     [selected, setSelected] = useState<string | null>(null),
     [paymentId, setPaymentId] = useState(() => crypto.randomUUID());
   const part = current.paymentParts?.find((p) => p.id === selected);
+  if (current.status === 'CANCELLED')
+    return (
+      <section className="space-y-4">
+        <h1>Đã hủy đơn · {current.code}</h1>
+        <a href="/orders">Về đơn hàng</a>
+      </section>
+    );
   if (current.status === 'PAID')
     return (
       <section className="space-y-4">
@@ -71,6 +79,7 @@ export function ShareCheckout({
         </div>
       ))}
       <a href="/orders">Về đơn hàng</a>
+      <OrderTools order={current} tables={[]} onChange={setCurrent} />
       {part && (
         <PaymentDialog
           key={paymentId}

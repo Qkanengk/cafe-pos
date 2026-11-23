@@ -49,6 +49,10 @@ test.describe('Cafe POS · Definition of Done (fresh DB)', () => {
       'offline-check.mjs',
     ],
     ['Equal-share cash/QR payments and paid-bill refunds', 'finance-check.mjs'],
+    [
+      'Shared bill cancellation, stale refund conflicts and refund history',
+      'review-finance-check.mjs',
+    ],
   ]) {
     test(name, async ({ browserName }, testInfo) => {
       expect(browserName).toBe('chromium');

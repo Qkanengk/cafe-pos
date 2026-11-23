@@ -12,10 +12,12 @@ const mocks = vi.hoisted(() => {
     upsert: vi.fn(),
     update: vi.fn(),
     updateMany: vi.fn(),
+    deleteMany: vi.fn(),
   });
   return {
     db: {
       order: model(),
+      paymentPart: model(),
       orderSequence: model(),
       orderItem: model(),
       orderItemTopping: model(),
@@ -55,6 +57,14 @@ function fixture() {
     type: 'DINE_IN',
     subtotal: 90000,
     total: 90000,
+    businessDate: '2020-01-01',
+    payments: [] as { id: string; amount: number }[],
+    paymentParts: [] as {
+      id: string;
+      position: number;
+      amount: number;
+      payment: { id: string } | null;
+    }[],
     discountType: null as string | null,
     discountValue: 0,
     note: '',
@@ -139,6 +149,10 @@ beforeEach(() => {
     return { count: 2 };
   });
   mocks.db.orderItem.create.mockResolvedValue({ id: 'new-item' });
+  mocks.db.paymentPart.deleteMany.mockImplementation(async () => {
+    state.paymentParts = state.paymentParts.filter((p) => p.payment);
+    return { count: 2 };
+  });
 });
 describe('held order transactions', () => {
   it('replays the exact same edit after a lost response without duplicating additions', async () => {
@@ -236,6 +250,57 @@ describe('held order transactions', () => {
     expect(result.total).toBe(0);
     expect(result.items).toHaveLength(2);
     expect(result.items.every((i) => i.status === 'VOIDED')).toBe(true);
+  });
+  it('cancels an unpaid share plan, but keeps edits blocked and requires owner approval', async () => {
+    state.paymentParts = [
+      { id: 'part', position: 1, amount: 90000, payment: null },
+    ];
+    await expect(
+      operateOrder(actor, id, { action: 'MOVE', version: 1, tableId: id }),
+    ).rejects.toThrow('chia đều');
+    await expect(
+      operateOrder(actor, id, {
+        action: 'CANCEL',
+        version: 1,
+        ownerPin: '9999',
+        reason: 'Khách về',
+      }),
+    ).rejects.toMatchObject({ status: 403 });
+    const result = await operateOrder(actor, id, {
+      action: 'CANCEL',
+      version: 1,
+      ownerPin: '1111',
+      reason: 'Khách về',
+    });
+    expect(result.status).toBe('CANCELLED');
+    expect(result.total).toBe(0);
+  });
+  it('waives only unpaid shares, retaining receipts and collected funds and finalizing the bill', async () => {
+    state.payments = [{ id: 'paid', amount: 30000 }];
+    state.paymentParts = [
+      { id: 'first', position: 1, amount: 30000, payment: { id: 'paid' } },
+      { id: 'second', position: 2, amount: 60000, payment: null },
+    ];
+    const result = await operateOrder(actor, id, {
+      action: 'CANCEL',
+      version: 1,
+      ownerPin: '1111',
+      reason: 'Miễn phần còn lại',
+    });
+    expect(result).toMatchObject({
+      status: 'PAID',
+      total: 30000,
+      discountType: 'AMOUNT',
+      discountValue: 60000,
+    });
+    expect(result.paymentParts).toHaveLength(1);
+    expect(result.items.every((i) => i.status === 'ACTIVE')).toBe(true);
+    expect(mocks.db.auditLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        action: 'CANCEL_SHARES',
+        data: expect.objectContaining({ amount: 60000, total: 30000 }),
+      }),
+    });
   });
   it('moves tables only when the destination is free', async () => {
     await operateOrder(actor, id, { action: 'MOVE', version: 1, tableId: id });

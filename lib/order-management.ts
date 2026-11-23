@@ -5,9 +5,10 @@ import { z } from 'zod';
 import { db } from './db';
 import { HttpError } from './api';
 import { ownerPinLimiter, pinLockMessage } from './pin-limit';
-import { lockStore, nextOrderCode, orderInclude } from './sales';
+import { lockStore, nextOrderCode, orderInclude, vietnamDay } from './sales';
 import { editOrderSchema, operationSchema } from './sales-validation';
 import { cartTotal, discountAmount, allocateDiscount, sumMoney } from './money';
+import { auditDiscount } from './discount-audit';
 
 type Tx = Prisma.TransactionClient;
 type Actor = { id: string; storeId: string; ip?: string };
@@ -23,13 +24,14 @@ async function activeOrder(
   id: string,
   version: number,
   replayHash?: string,
+  allowShares = false,
 ) {
   const order = await tx.order.findFirst({
     where: { id, storeId: actor.storeId },
     include: orderInclude,
   });
   if (!order) throw new HttpError('Không tìm thấy đơn', 404);
-  if (order.paymentParts?.length)
+  if (order.paymentParts?.length && !allowShares)
     throw new HttpError(
       'Đơn đã chia đều, không thể sửa món hoặc gộp/tách. Hãy hoàn tất từng phần trước.',
       409,
@@ -260,7 +262,14 @@ export async function operateOrder(
 ) {
   return db.$transaction(async (tx) => {
     await authorizeActor(tx, actor);
-    const order = await activeOrder(tx, actor, id, input.version);
+    const order = await activeOrder(
+      tx,
+      actor,
+      id,
+      input.version,
+      undefined,
+      input.action === 'CANCEL',
+    );
     if (input.action === 'VOID' || input.action === 'CANCEL') {
       const owners = await tx.user.findMany({
         where: { storeId: actor.storeId, role: 'OWNER', isActive: true },
@@ -279,6 +288,48 @@ export async function operateOrder(
         }
       if (!ownerId) throw new HttpError('PIN chủ quán không đúng', 403);
       success();
+      if (
+        input.action === 'CANCEL' &&
+        order.paymentParts?.some((p) => p.payment)
+      ) {
+        const amount = sumMoney(order.payments.map((p) => p.amount)),
+          paidAt = new Date(),
+          businessDate = vietnamDay(paidAt);
+        const numbering =
+          businessDate === order.businessDate
+            ? {}
+            : await nextOrderCode(tx, actor.storeId, paidAt);
+        const cancelled = order.paymentParts.filter((p) => !p.payment);
+        await tx.paymentPart.deleteMany({
+          where: { orderId: id, storeId: actor.storeId, payment: null },
+        });
+        const updated = await tx.order.update({
+          where: { id },
+          data: {
+            ...numbering,
+            status: 'PAID',
+            paidAt,
+            total: amount,
+            discountType: 'AMOUNT',
+            discountValue: order.subtotal - amount,
+            version: { increment: 1 },
+          },
+          include: orderInclude,
+        });
+        await auditDiscount(tx, actor, updated);
+        await audit(tx, actor, id, 'CANCEL_SHARES', {
+          ownerId,
+          reason: input.reason,
+          amount: order.total - amount,
+          total: amount,
+          cancelledParts: cancelled.map((p) => ({
+            id: p.id,
+            position: p.position,
+            amount: p.amount,
+          })),
+        });
+        return updated;
+      }
       if (input.action === 'VOID') {
         const item = order.items.find(
           (i) => i.id === input.itemId && i.status === 'ACTIVE',

@@ -35,6 +35,14 @@ export function OrderTools({
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [splitId, setSplitId] = useState(() => crypto.randomUUID());
+  const shared = Boolean(order.paymentParts?.length),
+    collected = order.payments
+      .filter((p) => p.amount >= 0)
+      .reduce((s, p) => s + p.amount, 0);
+  const actionLabel = (value: Action) =>
+    value === 'CANCEL' && shared && collected > 0
+      ? 'Hủy phần chưa thu'
+      : labels[value];
   async function open(value: Action) {
     setSplitId(crypto.randomUUID());
     setAction(value);
@@ -104,33 +112,43 @@ export function OrderTools({
   return (
     <>
       <div className="flex flex-wrap gap-2" aria-label="Thao tác đơn">
-        {(Object.keys(labels) as Action[]).map((value) => (
-          <Button
-            key={value}
-            className="min-h-11 bg-white px-3 py-2 text-sm text-emerald-900 border border-stone-200 hover:bg-stone-100"
-            onClick={() => open(value)}
-          >
-            {value === 'SPLIT' ? (
-              <Scissors size={16} className="mr-2" />
-            ) : value === 'MERGE' ? (
-              <GitMerge size={16} className="mr-2" />
-            ) : value === 'MOVE' ? (
-              <MoveRight size={16} className="mr-2" />
-            ) : (
-              <ShieldAlert size={16} className="mr-2" />
-            )}
-            {labels[value]}
-          </Button>
-        ))}
+        {(Object.keys(labels) as Action[])
+          .filter((value) => !shared || value === 'CANCEL')
+          .map((value) => (
+            <Button
+              key={value}
+              className="min-h-11 bg-white px-3 py-2 text-sm text-emerald-900 border border-stone-200 hover:bg-stone-100"
+              onClick={() => open(value)}
+            >
+              {value === 'SPLIT' ? (
+                <Scissors size={16} className="mr-2" />
+              ) : value === 'MERGE' ? (
+                <GitMerge size={16} className="mr-2" />
+              ) : value === 'MOVE' ? (
+                <MoveRight size={16} className="mr-2" />
+              ) : (
+                <ShieldAlert size={16} className="mr-2" />
+              )}
+              {actionLabel(value)}
+            </Button>
+          ))}
       </div>
       {action && (
         <Dialog
-          title={labels[action] + ' · ' + order.code}
+          title={actionLabel(action) + ' · ' + order.code}
           onClose={() => {
             if (!busy) setAction(null);
           }}
         >
           <div className="space-y-5">
+            {action === 'CANCEL' && shared && collected > 0 && (
+              <p role="note">
+                Giữ nguyên {formatVnd(collected)} đã thu; miễn thu{' '}
+                {formatVnd(order.total - collected)} còn lại và chốt hóa đơn đã
+                thanh toán. Không hoàn tiền. Muốn hoàn phần đã thu, mở hóa đơn
+                đã chốt để hoàn bằng PIN chủ quán.
+              </p>
+            )}
             {action === 'VOID' || action === 'CANCEL' ? (
               <>
                 <p className="rounded-xl bg-amber-50 p-4 text-sm text-amber-900">
@@ -290,7 +308,7 @@ export function OrderTools({
             >
               {busy
                 ? 'Đang lưu…'
-                : 'Xác nhận ' + labels[action].toLocaleLowerCase('vi')}
+                : 'Xác nhận ' + actionLabel(action).toLocaleLowerCase('vi')}
             </Button>
           </div>
         </Dialog>

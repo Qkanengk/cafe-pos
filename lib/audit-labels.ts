@@ -10,6 +10,7 @@ const actions: Record<string, string> = {
   DISCOUNT: 'Áp dụng giảm giá',
   VOID: 'Hủy món',
   CANCEL: 'Hủy đơn',
+  CANCEL_SHARES: 'Hủy phần chưa thu',
   MERGE: 'Gộp đơn',
   SPLIT: 'Tách đơn',
   MOVE: 'Chuyển bàn',
