@@ -3,6 +3,7 @@ import { compare } from 'bcryptjs';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { COOKIE_NAME, signSession } from '@/lib/session';
+import { validOrigin } from '@/lib/request-origin';
 const schema = z.discriminatedUnion('mode', [
   z.object({
     mode: z.literal('pin'),
@@ -16,10 +17,7 @@ const schema = z.discriminatedUnion('mode', [
   }),
 ]);
 export async function POST(request: NextRequest) {
-  if (
-    request.headers.get('origin') &&
-    request.headers.get('origin') !== request.nextUrl.origin
-  )
+  if (!validOrigin(request))
     return NextResponse.json(
       { error: 'Yêu cầu không hợp lệ' },
       { status: 403 },

@@ -1,15 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { COOKIE_NAME } from '@/lib/session';
+import { requestOrigin, validOrigin } from '@/lib/request-origin';
 export async function POST(request: NextRequest) {
-  if (
-    request.headers.get('origin') &&
-    request.headers.get('origin') !== request.nextUrl.origin
-  )
+  if (!validOrigin(request))
     return NextResponse.json(
       { error: 'Yêu cầu không hợp lệ' },
       { status: 403 },
     );
-  const response = NextResponse.redirect(new URL('/login', request.url), 303);
+  const response = NextResponse.redirect(
+    new URL('/login', requestOrigin(request)),
+    303,
+  );
   response.cookies.set(COOKIE_NAME, '', {
     httpOnly: true,
     sameSite: 'lax',
