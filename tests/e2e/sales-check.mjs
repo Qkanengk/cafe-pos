@@ -313,6 +313,49 @@ try {
   const payDialog = page.getByRole('dialog', {
     name: 'Thanh toán ' + order.code,
   });
+  const tenderInput = payDialog.getByLabel('Tiền khách đưa', { exact: true });
+  await tenderInput.fill('50.000');
+  await tenderInput.press('End');
+  await tenderInput.press('Backspace');
+  await tenderInput.press('Backspace');
+  await tenderInput.blur();
+  await expect(tenderInput).toHaveValue('500');
+  await tenderInput.fill('50,000.00');
+  await expect(tenderInput).toHaveAttribute('aria-invalid', 'true');
+  await expect(payDialog.getByRole('alert')).toContainText(
+    'không nhập số thập phân',
+  );
+  await expect(
+    payDialog.getByRole('button', {
+      name: 'Xác nhận đã nhận tiền',
+      exact: true,
+    }),
+  ).toBeDisabled();
+  await tenderInput.fill('');
+  for (const [key, value] of [
+    ['1', '1'],
+    ['000', '1.000'],
+    ['Xóa chữ số cuối', '100'],
+    ['Xóa tiền khách đưa', ''],
+  ]) {
+    await payDialog
+      .getByRole('button', { name: key, exact: true })
+      .evaluate((button) => button.click());
+    await expect(tenderInput).toBeFocused();
+    await expect(tenderInput).toHaveValue(value);
+  }
+  await payDialog
+    .getByTestId('cash-suggestion')
+    .first()
+    .evaluate((button) => button.click());
+  await expect(tenderInput).toBeFocused();
+  await expect(tenderInput).toHaveValue(
+    new Intl.NumberFormat('vi-VN').format(total),
+  );
+  await tenderInput.fill('');
+  console.log(
+    'PASS money editing: decimal/mixed grouping rejected, repeated digit deletion preserved; focused tender tracks keypad, clear, backspace and preset changes',
+  );
   await expect(
     payDialog.getByRole('button', { name: 'Xác nhận đã nhận tiền' }),
   ).toBeDisabled();

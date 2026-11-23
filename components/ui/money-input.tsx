@@ -31,7 +31,10 @@ export function MoneyInput({
     () => true,
     () => false,
   );
-  const [editing, setEditing] = useState<string | null>(null);
+  const [editing, setEditing] = useState<{
+    text: string;
+    source: string;
+  } | null>(null);
   const errorId = useId();
   const amount = grouped ? parseVndInput(value) : parsePercentInput(value);
   const invalid = String(value) !== '' && !Number.isFinite(amount);
@@ -49,26 +52,27 @@ export function MoneyInput({
         disabled={props.disabled || !interactive}
         type="text"
         inputMode="numeric"
-        value={editing ?? display}
+        value={editing?.source === String(value) ? editing.text : display}
         aria-invalid={invalid}
         aria-describedby={
           [props['aria-describedby'], invalid ? errorId : '']
             .filter(Boolean)
             .join(' ') || undefined
         }
-        onFocus={(event) => setEditing(event.currentTarget.value)}
+        onFocus={(event) =>
+          setEditing({ text: event.currentTarget.value, source: String(value) })
+        }
         onBlur={() => setEditing(null)}
         onChange={(event) => {
           const deleting =
             !!(event.nativeEvent as InputEvent).inputType?.startsWith(
               'delete',
-            ) && Number.isFinite(parseVndInput(editing ?? display));
-          setEditing(event.target.value);
-          onValueChange(
-            grouped
-              ? normalizeVndEditing(event.target.value, deleting)
-              : event.target.value,
-          );
+            ) && Number.isFinite(amount);
+          const next = grouped
+            ? normalizeVndEditing(event.target.value, deleting)
+            : event.target.value;
+          setEditing({ text: event.target.value, source: next });
+          onValueChange(next);
         }}
       />
       {invalid && (
