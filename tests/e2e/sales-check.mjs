@@ -488,10 +488,15 @@ try {
     'PASS bank transfer: local VietQR image, amount/order code, explicit manual confirmation and recorded cashier; daily sequence increments',
   );
   await page.getByRole('link', { name: 'Đơn hàng', exact: true }).click();
+  await page
+    .getByTestId('order-' + second.id)
+    .getByText(/Chi tiết đơn ·/)
+    .click();
   await expect(
     page.getByRole('link', { name: 'In hóa đơn', exact: true }).first(),
   ).toBeVisible();
   await svgCheck(page);
+  await page.getByRole('button', { name: 'Đóng', exact: true }).click();
   await page.getByRole('link', { name: 'Ca làm việc', exact: true }).click();
   const expected = 200000 + tender - (tender - total);
   await expect(page.getByTestId('expected-cash')).toHaveText(fmt(expected));
