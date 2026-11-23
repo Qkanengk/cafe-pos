@@ -68,7 +68,30 @@ export function reapplyPending(
   for (const line of working) {
     const old = base.items.find((i) => i.id === line.snapshot?.id);
     if (!old) {
-      if (fresh.items.some((item) => item.id === line.id)) continue;
+      const saved = fresh.items.find((item) => item.id === line.id);
+      if (saved) {
+        const current = merged.find((item) => item.id === line.id);
+        if (current) {
+          if (
+            line.quantity < saved.quantity ||
+            line.variantId !== saved.variantId ||
+            JSON.stringify([...line.toppingIds].sort()) !==
+              JSON.stringify(saved.toppings.map((t) => t.toppingId).sort())
+          )
+            throw new Error(
+              'Dòng món đã được lưu. Giảm số lượng hoặc đổi size/topping cần kiểm tra/hủy món đã lưu trước; giỏ đang sửa vẫn được giữ.',
+            );
+          current.quantity = Math.max(current.quantity, line.quantity);
+          current.note = line.note;
+        } else if (line.quantity > saved.quantity)
+          merged.push({
+            ...line,
+            id: crypto.randomUUID(),
+            quantity: line.quantity - saved.quantity,
+            snapshot: undefined,
+          });
+        continue;
+      }
       merged.push({ ...line, snapshot: undefined });
       continue;
     }

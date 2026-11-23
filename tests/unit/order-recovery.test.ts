@@ -19,6 +19,35 @@ const item: SaleOrder['items'][number] = {
   toppings: [],
 };
 const base = { id: 'order', status: 'OPEN', items: [item] } as SaleOrder;
+it('retains latest quantity and note edits to a newly committed client-identity line', () => {
+  const pending = {
+    id: 'new-line',
+    productId: 'p',
+    variantId: 'v',
+    quantity: 3,
+    toppingIds: [],
+    note: 'không đường',
+  };
+  const fresh = {
+    ...base,
+    items: [item, { ...item, id: pending.id, quantity: 2, note: 'ít đường' }],
+  };
+  expect(
+    reapplyPending(base, fresh, [...orderLines(base), pending])[1],
+  ).toMatchObject({
+    id: 'new-line',
+    quantity: 3,
+    note: 'không đường',
+    snapshot: expect.objectContaining({ quantity: 2 }),
+  });
+  expect(() =>
+    reapplyPending(base, fresh, [{ ...pending, quantity: 1 }]),
+  ).toThrow('Dòng món đã được lưu');
+  expect(pending.quantity).toBe(3);
+  expect(() =>
+    reapplyPending(base, fresh, [{ ...pending, variantId: 'other' }]),
+  ).toThrow('Dòng món đã được lưu');
+});
 it('keeps a held historical size renderable after it is retired from the menu', () => {
   const line = orderLines(base)[0];
   expect(orderLineVariant(line, [])).toEqual({
