@@ -125,3 +125,25 @@ export function allocateDiscount(
 export function sumMoney(values: readonly number[]): number {
   return values.reduce((sum, value) => vnd(sum + vnd(value)), 0);
 }
+export function averageTicket(revenue: number, count: number): number {
+  vnd(revenue);
+  vnd(count);
+  return count === 0
+    ? 0
+    : Number((BigInt(revenue) * 2n + BigInt(count)) / (BigInt(count) * 2n));
+}
+export function netLineRevenues(
+  lines: readonly CartLine[],
+  discount: number,
+): number[] {
+  let remaining = subtotal(lines),
+    reduction = vnd(discount);
+  if (reduction > remaining) throw new RangeError('Discount exceeds subtotal');
+  return lines.map((line) => {
+    const amount = lineTotal(line);
+    const allocation = allocateDiscount(remaining, reduction, amount);
+    remaining -= amount;
+    reduction = allocation.remaining;
+    return amount - allocation.moved;
+  });
+}

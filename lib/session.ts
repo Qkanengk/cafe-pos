@@ -40,6 +40,7 @@ export function ownerOnly(path: string) {
   return (
     path.startsWith('/admin') ||
     path.startsWith('/reports') ||
-    path.startsWith('/api/admin')
+    path.startsWith('/api/admin') ||
+    path.startsWith('/api/reports')
   );
 }

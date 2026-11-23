@@ -39,7 +39,7 @@ npm run build
 
 Next.js 16 dùng `proxy.ts` thay tên `middleware.ts`; middleware kiểm tra JWT, các layout server kiểm tra lại người dùng trong database. Trang `/admin/*` và `/reports` chỉ dành cho chủ quán. Phiên hết hạn sau 12 giờ, cookie HttpOnly/SameSite=Lax. Môi trường HTTP local dùng cookie không Secure; HTTPS tự bật Secure.
 
-Offline, đồng bộ và báo cáo thuộc các giai đoạn sau. Giai đoạn hiện tại cần kết nối đến máy chủ POS. Bản in được kiểm tra trong trình duyệt, chưa thử máy in nhiệt thực tế.
+Bản in được kiểm tra trong trình duyệt, chưa thử máy in nhiệt thực tế. Thiết lập menu/nhân viên, mở/đóng ca, sửa đơn máy chủ và báo cáo cần kết nối đến máy chủ POS.
 
 ## Quản trị (giai đoạn 2)
 
@@ -93,3 +93,23 @@ CHROME_PATH=$(command -v google-chrome) node tests/e2e/tables-check.mjs
 ```
 
 Để kiểm tra giá mẫu mới mà không đổi database hiện có, tạo database kiểm thử riêng trong cùng PostgreSQL rồi chạy image ứng dụng với `DATABASE_URL` trỏ đến database đó, cổng phụ 3001. Chạy script với `BASE_URL=http://localhost:3001 CHECK_DATABASE=cafe_phase4_check EXPECT_FRESH_PRICES=1`. Script giữ lại lịch sử giao dịch kiểm thử, đóng ca khi hoàn tất và lưu `tables.png`, `void-pin.png`, `orders.png`, `pos.png` cùng ảnh lỗi đồng thời vào `SCREENSHOT_DIR` (mặc định `/home/ubuntu/shots`).
+
+## Ngoại tuyến & báo cáo (giai đoạn 5)
+
+- PWA có manifest và icon PNG cục bộ, service worker tự viết. Cần **localhost hoặc HTTPS**; IP LAN qua HTTP không có bảo đảm service worker. Font hệ thống, không tải font/CDN.
+- Đăng nhập, mở ca khi có mạng, vào POS, đợi **Sẵn sàng bán ngoại tuyến**. Dexie lưu menu/bảng giá có chữ ký, quán/ngân hàng, bàn, ca mở và hạn phiên. Service worker cache shell, `/pos`, `/tables`, menu JSON và asset Next.js; mất mạng vẫn tải lại trang, mở bàn trống và bán đơn mới.
+- Tiền mặt và VietQR tạo PNG tại máy; chuyển khoản vẫn cần thu ngân xác nhận. Đơn dùng UUID và mã **TAM-xxxxxxxx**. Chỉ báo thành công sau khi IndexedDB lưu bền vững cả đơn và UUID thanh toán. Không xóa dữ liệu trình duyệt/gỡ ứng dụng khi còn đơn chờ.
+- Reconnect và mỗi 10 giây gửi tối đa 20 đơn/lô đến `/api/sync`. Header có nút thử ngay. Server kiểm tra nhân viên/cửa hàng/ca, chữ ký bảng giá và tiền thối, rồi ghi nguyên tử từng đơn + snapshot + payment + audit. Một dòng lỗi không chặn dòng hợp lệ; lỗi hiện ở header, dữ liệu chờ không tự bị xóa.
+- Replay cùng UUID đơn/thanh toán và nội dung trả lại mã đã cấp. Nội dung khác cùng UUID trả 409 cho dòng đó. Mã CF tăng tuần tự theo ngày thanh toán Việt Nam trong transaction. Banner đổi TAM thành CF sau sync; in lại ở Đơn hàng. Đơn giữ đúng ca đã cache, không chuyển sang ca mới.
+- Phiên ngoại tuyến hết hạn cùng phiên đăng nhập (12 giờ); kết nối và đăng nhập lại để tiếp tục. Queue giữ theo nhân viên, chỉ sync dưới đúng tài khoản. Logout xóa cache service worker, không xóa giao dịch đang chờ trong IndexedDB. Không đăng nhập mới/chuyển nhân viên khi mất mạng.
+- Đơn giữ ngoại tuyến ở URL UUID trên thiết bị đến khi thanh toán, không đẩy OPEN lên server. Sửa/gộp/tách/hủy đơn máy chủ cần mạng/PIN. Nếu thiết bị khác đóng ca trước thời điểm bán hoặc món/bàn đã bị xóa, sync giữ dòng lỗi để chủ quán kiểm tra thay vì âm thầm đổi ca/giá. Đơn bán trước lúc đóng ca vẫn sync muộn được, có thể thay đổi đối soát ca đã đóng.
+- `/reports` và `/api/reports` OWNER-only. Mặc định hôm nay, tối đa 366 ngày, giờ Việt Nam; chỉ tính PAID đã sync. Có doanh thu ngày/ca/phương thức, số đơn, trung bình, top 10 số lượng/doanh thu. Doanh thu món gồm topping và phân bổ giảm giá nguyên VND. Món/đơn hủy có ca, lý do, OWNER cho phép từ audit; gộp bill không bị tính nhầm là hủy.
+- Báo cáo theo ngày thanh toán; mục hủy theo thời điểm audit. Dùng snapshot, không thay bởi giá/tên hiện tại.
+
+Kiểm tra production (Compose chạy, tài khoản demo, không có ca mở):
+
+```sh
+CHROME_PATH=$(command -v google-chrome) node tests/e2e/offline-check.mjs
+```
+
+Script bán 5 đơn tiền mặt offline, kiểm tra queue sau cold reload, bàn và VietQR offline; reconnect đối chiếu đúng 5 đơn/5 payment trong PostgreSQL, replay không trùng, đối chiếu báo cáo hôm nay với SQL. Giữ lịch sử thử, đóng ca thử. Ảnh trong `SCREENSHOT_DIR` (mặc định `/home/ubuntu/shots`): `offline-pending.png`, `synced.png`, `reports-phone.png` (390px).
