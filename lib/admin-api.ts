@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
-import { hash } from 'bcryptjs';
+import { hash, compare } from 'bcryptjs';
 import { db } from './db';
 import { COOKIE_NAME, verifySession } from './session';
 import { validOrigin } from './request-origin';
@@ -203,6 +203,26 @@ export async function adminRequest(request: NextRequest, resource: string) {
         const existing = id
           ? await tx.user.findUniqueOrThrow({ where: { id, storeId } })
           : null;
+        if (input.isActive && existing && !existing.isActive && !pin)
+          throw new AdminError(
+            'Nhập lại PIN khi bật nhân viên để kiểm tra trùng mã.',
+          );
+        if (input.isActive && pin) {
+          const active = await tx.user.findMany({
+            where: {
+              storeId,
+              isActive: true,
+              ...(id ? { id: { not: id } } : {}),
+            },
+            select: { pinHash: true },
+          });
+          for (const user of active)
+            if (await compare(pin, user.pinHash))
+              throw new AdminError(
+                'PIN đã được nhân viên đang hoạt động trong quán sử dụng. Chọn PIN khác.',
+                409,
+              );
+        }
         if (input.role === 'OWNER' && !password && !existing?.passwordHash)
           throw new AdminError('Chủ quán cần mật khẩu');
         const update = {

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 import { Prisma } from '@prisma/client';
+import { compare } from 'bcryptjs';
 const mocks = vi.hoisted(() => {
   const model = () => ({
     findFirst: vi.fn(),
@@ -33,6 +34,7 @@ vi.mock('../../lib/session', () => ({
 }));
 vi.mock('bcryptjs', () => ({
   hash: vi.fn().mockResolvedValue('hashed-secret'),
+  compare: vi.fn(),
 }));
 import { adminRequest } from '../../lib/admin-api';
 const id = '7ff9e456-8548-4f88-9c18-1d2b655de2ce';
@@ -49,6 +51,7 @@ function request(method = 'GET', body?: unknown, origin?: string) {
 }
 beforeEach(() => {
   vi.resetAllMocks();
+  vi.mocked(compare).mockResolvedValue(false as never);
   mocks.verify.mockResolvedValue({
     sub: ownerId,
     storeId: 'store',
@@ -84,6 +87,49 @@ beforeEach(() => {
   mocks.db.$transaction.mockImplementation(async (fn) => fn(mocks.db));
 });
 describe('owner admin API', () => {
+  it('rejects duplicate active PINs within the store before writing', async () => {
+    mocks.db.user.findMany.mockResolvedValueOnce([{ pinHash: 'another-hash' }]);
+    vi.mocked(compare).mockResolvedValueOnce(true as never);
+    const response = await adminRequest(
+      request('POST', {
+        name: 'New',
+        role: 'CASHIER',
+        isActive: true,
+        email: '',
+        pin: '2222',
+        password: '',
+      }),
+      'users',
+    );
+    expect(response.status).toBe(409);
+    expect((await response.json()).error).toContain('PIN đã được');
+    expect(mocks.db.user.create).not.toHaveBeenCalled();
+    expect(mocks.db.user.findMany).toHaveBeenCalledWith({
+      where: { storeId: 'store', isActive: true },
+      select: { pinHash: true },
+    });
+  });
+  it('requires a PIN recheck when an inactive account is reactivated', async () => {
+    mocks.db.user.findUniqueOrThrow.mockResolvedValueOnce({
+      id,
+      isActive: false,
+      pinHash: 'old',
+    });
+    const response = await adminRequest(
+      request('PUT', {
+        id,
+        name: 'Old',
+        role: 'CASHIER',
+        isActive: true,
+        email: '',
+        pin: '',
+        password: '',
+      }),
+      'users',
+    );
+    expect(response.status).toBe(400);
+    expect((await response.json()).error).toContain('Nhập lại PIN');
+  });
   it('requires a live owner account, not just JWT claims', async () => {
     mocks.verify.mockResolvedValueOnce(null);
     expect((await adminRequest(request(), 'categories')).status).toBe(401);
