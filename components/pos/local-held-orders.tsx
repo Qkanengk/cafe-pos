@@ -11,7 +11,10 @@ export function LocalHeldOrders() {
     const load = () => {
       void localDrafts()
         .then((rows) => {
-          if (active) setDrafts(rows);
+          if (active) {
+            setDrafts(rows);
+            setError('');
+          }
         })
         .catch((e) => {
           if (active)

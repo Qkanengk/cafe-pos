@@ -244,7 +244,9 @@ export async function localDraft(id: string) {
   return draft?.userId === snapshot.user.id ? draft : undefined;
 }
 export async function localDrafts() {
-  const snapshot = await cachedSnapshot();
+  const snapshot = navigator.onLine
+    ? await refreshSnapshot().catch(() => cachedSnapshot())
+    : await cachedSnapshot();
   return local.drafts.where('userId').equals(snapshot.user.id).toArray();
 }
 export async function syncedCode(id: string) {
