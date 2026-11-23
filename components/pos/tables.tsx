@@ -1,4 +1,8 @@
+'use client';
+import { useState, useEffect } from 'react';
 import { Armchair } from 'lucide-react';
+import { posFetch } from '@/lib/pos-fetch';
+import { serialPoll } from '@/lib/live-state';
 import { formatVnd, sumMoney } from '@/lib/money';
 type Table = {
   id: string;
@@ -6,7 +10,44 @@ type Table = {
   area: string;
   orders: { id: string; code: string; total: number }[];
 };
-export function Tables({ tables }: { tables: Table[] }) {
+export function Tables({
+  tables: initial,
+  offline = false,
+}: {
+  tables: Table[];
+  offline?: boolean;
+}) {
+  const [tables, setTables] = useState(initial),
+    [error, setError] = useState('');
+  useEffect(() => {
+    if (offline) return;
+    let active = true;
+    const update = serialPoll(async () => {
+      if (document.hidden) return;
+      try {
+        const response = await posFetch('/api/tables', { cache: 'no-store' });
+        if (!response.ok) throw new Error();
+        const data = await response.json();
+        if (active) {
+          setTables(data);
+          setError('');
+        }
+      } catch {
+        if (active)
+          setError(
+            'Chưa cập nhật được bàn. Dữ liệu có thể cũ; hãy kiểm tra kết nối.',
+          );
+      }
+    });
+    void update();
+    const timer = setInterval(() => void update(), 5000);
+    window.addEventListener('focus', update);
+    return () => {
+      active = false;
+      clearInterval(timer);
+      window.removeEventListener('focus', update);
+    };
+  }, [offline]);
   return (
     <div className="space-y-7">
       <header>
@@ -18,6 +59,12 @@ export function Tables({ tables }: { tables: Table[] }) {
           Chạm bàn trống để nhận đơn, bàn đang phục vụ để tiếp tục.
         </p>
       </header>
+      <p className="text-sm text-stone-500">
+        {offline
+          ? 'Sơ đồ đã lưu, chưa phản ánh thay đổi trên máy chủ.'
+          : 'Tự kiểm tra bàn mỗi 5 giây; thay đổi từ thiết bị khác sẽ hiện tại đây.'}
+      </p>
+      {error && <p role="alert">{error}</p>}
       {[...new Set(tables.map((t) => t.area))].map((area) => (
         <section key={area}>
           <h2 className="mb-4 text-xl font-bold">{area}</h2>

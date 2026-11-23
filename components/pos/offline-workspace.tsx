@@ -62,7 +62,7 @@ export function OfflineWorkspace() {
       {path === '/orders' ? (
         <LocalHeldOrders />
       ) : path === '/tables' ? (
-        <Tables tables={snapshot.tables} />
+        <Tables tables={snapshot.tables} offline />
       ) : (
         <Terminal
           products={snapshot.products}

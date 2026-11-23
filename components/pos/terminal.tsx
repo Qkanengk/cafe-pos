@@ -21,6 +21,7 @@ import { OrderTools } from './order-tools';
 import { prepareLocal, syncedCode } from '@/lib/offline';
 import { checkoutWithFallback } from '@/lib/checkout-client';
 import { posFetch } from '@/lib/pos-fetch';
+import { serialPoll, orderViewChanged } from '@/lib/live-state';
 import {
   orderLines,
   reapplyPending,
@@ -119,6 +120,40 @@ export function Terminal({
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [recovery, setRecovery] = useState<SaleOrder | null>(null);
+  const [stale, setStale] = useState('');
+  useEffect(() => {
+    if (!prepared || offlineMode || prepared.code.startsWith('TAM-')) return;
+    let active = true;
+    const update = serialPoll(async () => {
+      if (document.hidden) return;
+      try {
+        const response = await posFetch('/api/orders/' + prepared.id, {
+          cache: 'no-store',
+        });
+        if (!response.ok) throw new Error();
+        const fresh = await response.json();
+        if (active)
+          setStale(
+            orderViewChanged(prepared, fresh)
+              ? 'Đơn đã thay đổi trên thiết bị khác. Giỏ chưa lưu vẫn được giữ; đối chiếu bản mới trước khi thu tiền.'
+              : '',
+          );
+      } catch {
+        if (active)
+          setStale(
+            'Chưa kiểm tra được phiên bản máy chủ. Giỏ vẫn được giữ; hãy kiểm tra kết nối trước khi thu tiền.',
+          );
+      }
+    });
+    void update();
+    const timer = setInterval(() => void update(), 5000);
+    window.addEventListener('focus', update);
+    return () => {
+      active = false;
+      clearInterval(timer);
+      window.removeEventListener('focus', update);
+    };
+  }, [prepared, offlineMode]);
   async function recover() {
     setBusy(true);
     try {
@@ -355,6 +390,18 @@ export function Terminal({
           <a href="/pos" className="underline">
             Đơn mới
           </a>
+        </p>
+      )}
+      {prepared && stale && (
+        <p role="alert" className="rounded-xl bg-amber-50 p-4">
+          {stale}{' '}
+          <button
+            disabled={busy}
+            className="font-bold underline"
+            onClick={() => void recover()}
+          >
+            Đối chiếu (giữ món chưa lưu)
+          </button>
         </p>
       )}
       {recovery && (
