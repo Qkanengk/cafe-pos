@@ -30,7 +30,20 @@ export function MoneyInput({
       inputMode="numeric"
       value={display}
       aria-invalid={String(value) !== '' && !Number.isFinite(amount)}
-      onFocus={() => flushSync(() => setFocused(true))}
+      onFocus={(event) => {
+        const input = event.currentTarget;
+        const start = input.selectionStart,
+          end = input.selectionEnd,
+          previous = input.value;
+        flushSync(() => setFocused(true));
+        if (start !== null && end !== null) {
+          const position = (index: number) =>
+            input.value === previous.replace(/[.,]/g, '')
+              ? previous.slice(0, index).replace(/[.,]/g, '').length
+              : Math.min(index, input.value.length);
+          input.setSelectionRange(position(start), position(end));
+        }
+      }}
       onBlur={() => setFocused(false)}
       onChange={(e) => onValueChange(e.target.value)}
     />
