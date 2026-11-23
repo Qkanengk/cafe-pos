@@ -1,28 +1,48 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Wifi, WifiOff, RefreshCw } from 'lucide-react';
 import { pendingState, refreshSnapshot, syncPending } from '@/lib/offline';
+import { serverConnection } from '@/lib/server-connection';
 export function OfflineStatus() {
-  const [online, setOnline] = useState(true),
+  const [online, setOnline] = useState<boolean | null>(null),
     [pending, setPending] = useState(0),
     [error, setError] = useState(''),
     [ready, setReady] = useState(false);
+  const [connectionError, setConnectionError] = useState('');
+  const retry = useRef<() => Promise<void>>(async () => {});
   useEffect(() => {
     let active = true;
     const update = async () => {
       const state = await pendingState();
       if (active) {
-        setOnline(navigator.onLine);
         setPending(state.count);
         setError(state.error);
       }
     };
+    let checking = false;
     const sync = async () => {
+      if (checking) return;
+      checking = true;
       try {
-        await syncPending();
-      } catch {}
-      await update();
+        const connection = await serverConnection();
+        if (active) {
+          setOnline(connection.online);
+          setConnectionError(connection.error);
+        }
+        if (connection.online) await syncPending();
+      } catch {
+        if (active) {
+          setOnline(false);
+          setConnectionError(
+            'Không thể đồng bộ với máy chủ. Đơn trên thiết bị vẫn được giữ.',
+          );
+        }
+      } finally {
+        await update();
+        checking = false;
+      }
     };
+    retry.current = sync;
     const warm = async () => {
       try {
         const snapshot = await refreshSnapshot();
@@ -61,12 +81,15 @@ export function OfflineStatus() {
       void update();
     };
     const connected = () => {
+      void sync();
       void warm();
     };
     const disconnected = () => {
       setOnline(false);
+      setConnectionError('Thiết bị đang ngoại tuyến.');
     };
     void update();
+    void sync();
     if (navigator.onLine) void warm();
     window.addEventListener('online', connected);
     window.addEventListener('offline', disconnected);
@@ -104,12 +127,22 @@ export function OfflineStatus() {
         }
       >
         {online ? <Wifi size={16} /> : <WifiOff size={16} />}{' '}
-        {online ? 'Trực tuyến' : 'Ngoại tuyến'} ·{' '}
-        {pending > 0 ? pending + ' đơn chờ đồng bộ' : 'Đã đồng bộ'}
-        {pending > 0 && online && (
+        {online === null
+          ? 'Đang kiểm tra máy chủ'
+          : online
+            ? 'Trực tuyến'
+            : 'Mất kết nối máy chủ / ngoại tuyến'}{' '}
+        ·{' '}
+        {pending > 0
+          ? pending + ' đơn chờ đồng bộ'
+          : online
+            ? 'Đã đồng bộ'
+            : 'Chưa kiểm tra đồng bộ'}
+        {error && online && ' · Lỗi đồng bộ'}
+        {pending > 0 && (
           <button
             aria-label="Đồng bộ ngay"
-            onClick={() => void syncPending().catch(() => {})}
+            onClick={() => void retry.current()}
           >
             <RefreshCw size={16} />
           </button>
@@ -122,9 +155,10 @@ export function OfflineStatus() {
             : 'Đang chuẩn bị dữ liệu ngoại tuyến…'}
         </span>
       )}
-      {error && (
+      {(connectionError || error) && (
         <p role="alert" className="max-w-xs pt-1 text-red-800">
-          {error} Đơn chưa bị xóa; thử đồng bộ lại sau khi xử lý.
+          {connectionError || error} Đơn chưa bị xóa; thử đồng bộ lại sau khi xử
+          lý.
         </p>
       )}
     </div>
